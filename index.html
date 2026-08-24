@@ -99,6 +99,12 @@ nav button.on{color:var(--chalk);border-bottom-color:var(--amber)}
 .ex:last-child{border-bottom:0}
 .exTop{display:flex;align-items:baseline;gap:8px;margin-bottom:9px}
 .exName{font-size:14px;font-weight:700;flex:1;min-width:0}
+.exNameIn{
+  font-family:var(--sans);background:transparent;color:var(--chalk);
+  border:0;border-bottom:1px dashed transparent;padding:1px 0;width:100%;
+}
+.exNameIn:focus{outline:0;border-bottom-color:var(--amber)}
+.exNameIn.renamed{color:var(--amber);border-bottom-color:rgba(240,180,41,.3)}
 .exMeta{font-family:var(--mono);font-size:11px;color:var(--dimmer);white-space:nowrap}
 .sets{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .setBox{position:relative}
@@ -430,6 +436,25 @@ const DAYS=['일','월','화','수','목','금','토'];
 /* ══════════ 상태 ══════════ */
 let routines=ls.get(K.rt,DEF_ROUTINE);
 let logs=ls.get(K.lg,{});
+
+/* ── 이름 대신 고유 ID로 운동을 식별하도록 기존 데이터를 한 번 정리한다.
+      예전 기록은 이름이 같은 루틴 항목의 ID를 물려받는다. ── */
+(function migrate(){
+  if(ls.get('tl_migrated',false))return;
+  const byName={};
+  ['workout','rest'].forEach(k=>{
+    (routines[k]||[]).forEach(ex=>{
+      if(!ex.id)ex.id='x'+Math.random().toString(36).slice(2,9);
+      if(!byName[ex.n])byName[ex.n]=ex.id;
+    });
+  });
+  Object.keys(logs).forEach(d=>{
+    (logs[d].ex||[]).forEach(e=>{
+      if(!e.id)e.id=byName[e.n]||('x'+Math.random().toString(36).slice(2,9));
+    });
+  });
+  ls.set(K.rt,routines);ls.set(K.lg,logs);ls.set('tl_migrated',true);
+})();
 let foods=ls.get(K.fd,DEF_FOODS);
 let meals=ls.get(K.ml,{});
 let targets=ls.get(K.tg,DEF_TARGETS);
@@ -453,17 +478,22 @@ function loadDraft(){
   draft={};
   const list=isWorkout(cur)?routines.workout:routines.rest;
   list.forEach(ex=>{
-    const hit=saved&&saved.ex&&saved.ex.find(e=>e.n===ex.n);
-    draft[ex.n]={v:hit?hit.v.slice():new Array(ex.sets).fill(''),note:hit?(hit.note||''):''};
-    while(draft[ex.n].v.length<ex.sets)draft[ex.n].v.push('');
+    const hit=saved&&saved.ex&&saved.ex.find(e=>e.id===ex.id);
+    draft[ex.id]={
+      v:hit?hit.v.slice():new Array(ex.sets).fill(''),
+      note:hit?(hit.note||''):'',
+      n:hit&&hit.n?hit.n:ex.n   // 그날 쓴 이름을 따로 보관
+    };
+    while(draft[ex.id].v.length<ex.sets)draft[ex.id].v.push('');
   });
 }
 
-function prevTotal(name){
+/* 같은 ID의 가장 최근 기록을 찾는다. 이름이 바뀌어도 이어진다. */
+function prevTotal(id){
   const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
   for(const d of dates){
-    const e=logs[d].ex&&logs[d].ex.find(x=>x.n===name);
-    if(e){const t=e.v.reduce((a,b)=>a+num(b),0);if(t>0)return{t,d}}
+    const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
+    if(e){const t=e.v.reduce((a,b)=>a+num(b),0);if(t>0)return{t,d,n:e.n}}
   }
   return null;
 }
@@ -480,16 +510,17 @@ function renderRoutine(){
       html+=`<div class="secLabel">${esc(sec)}</div><div class="panel">`;
       open=true;
     }
-    const d=draft[ex.n]||{v:[],note:''};
+    const d=draft[ex.id]||{v:[],note:'',n:ex.n};
     const unit=ex.t==='hold'?'초':'회';
     const tot=d.v.reduce((a,b)=>a+num(b),0);
-    const pv=prevTotal(ex.n);
+    const pv=prevTotal(ex.id);
     let chip='<span class="chip new">첫 기록</span>';
     if(pv&&tot>0){
       const df=tot-pv.t;
       const cls=df>0?'up':df<0?'down':'flat';
       const sign=df>0?'+':'';
-      chip=`<span class="chip ${cls}">${sign}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}</span>`;
+      const was=pv.n&&pv.n!==d.n?` · ${esc(pv.n)}`:'';
+      chip=`<span class="chip ${cls}">${sign}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}</span>`;
     }else if(pv){
       chip=`<span class="chip flat">전회 ${fmt(pv.t)}${unit}</span>`;
     }
@@ -497,14 +528,16 @@ function renderRoutine(){
     for(let i=0;i<ex.sets;i++){
       boxes+=`<div class="setBox"><span class="setNo">${i+1}</span>
       <input type="number" inputmode="numeric" placeholder="—" value="${d.v[i]??''}"
-      data-ex="${esc(ex.n)}" data-i="${i}"></div>`;
+      data-ex="${ex.id}" data-i="${i}"></div>`;
     }
+    const renamed=d.n!==ex.n;
     html+=`<div class="ex">
-      <div class="exTop"><div class="exName">${esc(ex.n)}</div>
-      <div class="exMeta">${ex.sets}세트 · 휴식 ${ex.rest}초</div></div>
+      <div class="exTop">
+        <input class="exName exNameIn${renamed?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false">
+        <div class="exMeta">${ex.sets}세트 · 휴식 ${ex.rest}초</div></div>
       <div class="sets">${boxes}<span class="unit">${unit}</span></div>
       <div class="exFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
-      <textarea class="note" rows="1" placeholder="메모" data-note="${esc(ex.n)}">${esc(d.note)}</textarea>
+      <textarea class="note" rows="1" placeholder="메모" data-note="${ex.id}">${esc(d.note)}</textarea>
     </div>`;
   });
   if(open)html+='</div>';
@@ -512,20 +545,30 @@ function renderRoutine(){
 
   host.querySelectorAll('input[data-ex]').forEach(inp=>{
     inp.addEventListener('input',e=>{
-      const n=e.target.dataset.ex,i=+e.target.dataset.i;
-      draft[n].v[i]=e.target.value;
+      const id=e.target.dataset.ex,i=+e.target.dataset.i;
+      draft[id].v[i]=e.target.value;
       const card=e.target.closest('.ex');
-      const ex=list.find(x=>x.n===n);
+      const ex=list.find(x=>x.id===id);
       const unit=ex.t==='hold'?'초':'회';
-      const tot=draft[n].v.reduce((a,b)=>a+num(b),0);
+      const tot=draft[id].v.reduce((a,b)=>a+num(b),0);
       card.querySelector('.total').innerHTML=`합계 <b>${fmt(tot)}</b>${unit}`;
-      const pv=prevTotal(n),chipEl=card.querySelector('.chip');
+      const pv=prevTotal(id),chipEl=card.querySelector('.chip');
       if(pv&&tot>0){
         const df=tot-pv.t;
         chipEl.className='chip '+(df>0?'up':df<0?'down':'flat');
-        chipEl.textContent=`${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}`;
+        const was=pv.n&&pv.n!==draft[id].n?` · ${pv.n}`:'';
+        chipEl.textContent=`${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}`;
       }
       updateStat();
+    });
+  });
+  /* 그날의 운동 이름만 바꾼다. 루틴 원본과 지난 기록은 그대로 둔다. */
+  host.querySelectorAll('input[data-rename]').forEach(inp=>{
+    inp.addEventListener('input',e=>{
+      const id=e.target.dataset.rename;
+      draft[id].n=e.target.value;
+      const ex=list.find(x=>x.id===id);
+      e.target.classList.toggle('renamed',e.target.value!==ex.n);
     });
   });
   host.querySelectorAll('textarea[data-note]').forEach(t=>{
@@ -573,7 +616,7 @@ function updateStat(){
   let done=0,total=0;
   list.forEach(ex=>{
     total+=ex.sets;
-    (draft[ex.n]?draft[ex.n].v:[]).forEach(v=>{if(String(v).trim()!=='')done++});
+    (draft[ex.id]?draft[ex.id].v:[]).forEach(v=>{if(String(v).trim()!=='')done++});
   });
   const tag=isWorkout(cur)?'운동일':'휴식일';
   document.getElementById('saveStat').innerHTML=`${tag} · <b>${done}</b>/${total} 세트 입력됨`;
@@ -583,9 +626,9 @@ function saveLog(){
   const list=isWorkout(cur)?routines.workout:routines.rest;
   const ex=[];
   list.forEach(x=>{
-    const d=draft[x.n];if(!d)return;
+    const d=draft[x.id];if(!d)return;
     const has=d.v.some(v=>String(v).trim()!=='')||d.note.trim()!=='';
-    if(has)ex.push({n:x.n,t:x.t,v:d.v.slice(),note:d.note});
+    if(has)ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note});
   });
   if(ex.length)logs[cur]={ex};else delete logs[cur];
   ls.set(K.lg,logs);
@@ -774,7 +817,7 @@ document.getElementById('basis').addEventListener('change',e=>{
 document.getElementById('addEx').addEventListener('click',()=>{
   const key=document.getElementById('rSel').value;
   const last=routines[key][routines[key].length-1];
-  routines[key].push({s:last?last.s:'파트 1',n:'새 운동',t:'reps',sets:3,rest:60});
+  routines[key].push({id:'x'+Math.random().toString(36).slice(2,9),s:last?last.s:'파트 1',n:'새 운동',t:'reps',sets:3,rest:60});
   ls.set(K.rt,routines);renderREdit();refreshTrain();
 });
 document.getElementById('addFood').addEventListener('click',()=>{
@@ -811,7 +854,10 @@ document.getElementById('wipe').addEventListener('click',()=>{
   if(!confirm('모든 기록이 지워집니다. 계속할까요?'))return;
   Object.values(K).forEach(k=>localStorage.removeItem(k));
   localStorage.removeItem('tl_basis');
-  routines=JSON.parse(JSON.stringify(DEF_ROUTINE));logs={};foods=JSON.parse(JSON.stringify(DEF_FOODS));
+  routines=JSON.parse(JSON.stringify(DEF_ROUTINE));
+  ['workout','rest'].forEach(k=>routines[k].forEach(ex=>{ex.id='x'+Math.random().toString(36).slice(2,9)}));
+  ls.set(K.rt,routines);ls.set('tl_migrated',true);
+  logs={};foods=JSON.parse(JSON.stringify(DEF_FOODS));
   meals={};targets=JSON.parse(JSON.stringify(DEF_TARGETS));wdays=[2,4,0];basis='std';
   boot();
 });
