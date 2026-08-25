@@ -259,6 +259,38 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 }
 .rowEdit input.nm{flex:1;font-family:var(--sans);font-size:13px}
 .rowEdit input.n{width:52px;text-align:center}
+
+/* ── 라벨이 붙은 입력칸 ── */
+.nutGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:0 14px 11px}
+.nutCell{display:flex;flex-direction:column;gap:3px}
+.nutCell label{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.06em;
+  color:var(--dimmer);text-transform:uppercase;padding-left:2px;
+}
+.nutCell input{
+  width:100%;padding:8px 6px;text-align:center;
+  font-family:var(--mono);font-size:13px;font-weight:600;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:7px;
+}
+.nutCell input:focus{outline:0;border-color:var(--amber);background:#FFFBF0}
+.nutCell input::placeholder{color:#C4CCD6;font-weight:400}
+.foodHead{
+  display:flex;align-items:center;gap:8px;padding:11px 14px 8px;
+}
+.foodHead input{
+  flex:1;min-width:0;padding:8px 10px;
+  font-family:var(--sans);font-size:13.5px;font-weight:700;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:7px;
+}
+.foodHead input:focus{outline:0;border-color:var(--amber)}
+.foodCard{border-bottom:1px solid var(--line-soft)}
+.foodCard:last-child{border-bottom:0}
+.foodSum{
+  font-family:var(--mono);font-size:10.5px;color:var(--dimmer);
+  padding:0 14px 10px;line-height:1.5;
+}
 .btn{
   display:block;width:100%;padding:13px;margin:8px 0 2px;
   font-family:var(--sans);font-size:14px;font-weight:700;
@@ -367,20 +399,20 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
         <button class="linkBtn warn" id="clearMeal" style="margin-left:6px">비우기</button>
       </div>
       <div id="adhocForm" style="display:none">
-        <div class="rowEdit"><input class="nm" id="ahN" placeholder="음식 이름 (예: 김치찌개)"></div>
-        <div class="rowEdit" style="padding-top:0;border:0;flex-wrap:wrap">
-          <input class="n" type="number" inputmode="decimal" id="ahkcal" placeholder="kcal">
-          <input class="n" type="number" inputmode="decimal" id="ahp" placeholder="단백질">
-          <input class="n" type="number" inputmode="decimal" id="ahc" placeholder="탄수">
-          <input class="n" type="number" inputmode="decimal" id="ahf" placeholder="지방">
-          <input class="n" type="number" inputmode="decimal" id="ahsat" placeholder="포화">
-          <input class="n" type="number" inputmode="decimal" id="ahna" placeholder="나트륨">
+        <div class="foodHead"><input id="ahN" placeholder="음식 이름 (예: 김치찌개)"></div>
+        <div class="nutGrid">
+          <div class="nutCell"><label>칼로리</label><input type="number" inputmode="decimal" id="ahkcal" placeholder="kcal"></div>
+          <div class="nutCell"><label>단백질</label><input type="number" inputmode="decimal" id="ahp" placeholder="g"></div>
+          <div class="nutCell"><label>탄수화물</label><input type="number" inputmode="decimal" id="ahc" placeholder="g"></div>
+          <div class="nutCell"><label>지방</label><input type="number" inputmode="decimal" id="ahf" placeholder="g"></div>
+          <div class="nutCell"><label>포화지방</label><input type="number" inputmode="decimal" id="ahsat" placeholder="g"></div>
+          <div class="nutCell"><label>나트륨</label><input type="number" inputmode="decimal" id="ahna" placeholder="mg"></div>
         </div>
-        <div class="btnRow" style="padding-top:4px">
+        <div class="btnRow" style="padding-top:2px">
           <button class="btn" id="ahAdd">오늘 식단에 추가</button>
           <button class="btn ghost" id="ahCancel" style="flex:0 0 88px">취소</button>
         </div>
-        <div class="hint" style="padding-top:0">순서대로 칼로리 / 단백질 / 탄수화물 / 지방 / 포화지방 / 나트륨(mg). 비워두면 0으로 계산됩니다. 이 음식은 오늘 기록에만 남고 목록에는 등록되지 않습니다.</div>
+        <div class="hint" style="padding-top:0">비워둔 칸은 0으로 계산됩니다. 이 음식은 오늘 기록에만 남고 목록에는 등록되지 않습니다.</div>
       </div>
       <div id="meals"></div>
     </div>
@@ -418,7 +450,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       <div class="phead"><h2>음식 등록</h2><span class="sub">1인분 기준</span></div>
       <div id="fEdit"></div>
       <div class="btnRow"><button class="btn ghost" id="addFood">＋ 음식 추가</button></div>
-      <div class="hint">순서대로 칼로리 / 단백질 / 탄수화물 / 지방 / 포화지방 / 나트륨(mg)</div>
+      <div class="hint">입력한 값은 <b>1인분 기준</b>입니다. 식단 탭에서 배수를 조절하면 이 값에 비례해 계산됩니다.</div>
     </div>
 
     <div class="panel">
@@ -1034,22 +1066,52 @@ function renderREdit(){
     routines[key].splice(+b.dataset.rx,1);ls.set(K.rt,routines);renderREdit();refreshTrain();
   }));
 }
+const NUT_FIELDS=[
+  {k:'kcal',lab:'칼로리',ph:'kcal'},
+  {k:'p',lab:'단백질',ph:'g'},
+  {k:'c',lab:'탄수화물',ph:'g'},
+  {k:'f',lab:'지방',ph:'g'},
+  {k:'sat',lab:'포화지방',ph:'g'},
+  {k:'na',lab:'나트륨',ph:'mg'}
+];
+
 function renderFEdit(){
   document.getElementById('fEdit').innerHTML=foods.map((f,i)=>`
-    <div class="rowEdit"><input class="nm" value="${esc(f.n)}" data-f="${i}" data-k="n">
-    <button class="del" data-fx="${i}">✕</button></div>
-    <div class="rowEdit" style="padding-top:0;border:0;flex-wrap:wrap">
-      ${['kcal','p','c','f','sat','na'].map(k=>
-        `<input class="n" type="number" step="0.1" value="${f[k]}" data-f="${i}" data-k="${k}">`).join('')}
+    <div class="foodCard">
+      <div class="foodHead">
+        <input value="${esc(f.n)}" data-f="${i}" data-k="n" placeholder="음식 이름">
+        <button class="del" data-fx="${i}">✕</button>
+      </div>
+      <div class="nutGrid">
+        ${NUT_FIELDS.map(n=>`
+          <div class="nutCell">
+            <label>${n.lab}</label>
+            <input type="number" inputmode="decimal" step="0.1" value="${f[n.k]}" data-f="${i}" data-k="${n.k}" placeholder="${n.ph}">
+          </div>`).join('')}
+      </div>
+      <div class="foodSum" data-fsum="${i}">${foodSum(f)}</div>
     </div>`).join('')||'<div class="empty">음식을 추가해 주세요.</div>';
-  document.querySelectorAll('#fEdit [data-f]').forEach(el=>el.addEventListener('change',()=>{
-    const i=+el.dataset.f,k=el.dataset.k;
-    foods[i][k]=k==='n'?el.value:num(el.value);
-    ls.set(K.fd,foods);renderChips();renderMeals();renderNutrients();
-  }));
+
+  document.querySelectorAll('#fEdit [data-f]').forEach(el=>{
+    const apply=()=>{
+      const i=+el.dataset.f,k=el.dataset.k;
+      foods[i][k]=k==='n'?el.value:num(el.value);
+      ls.set(K.fd,foods);
+      const sum=document.querySelector(`[data-fsum="${i}"]`);
+      if(sum)sum.textContent=foodSum(foods[i]);
+    };
+    el.addEventListener('input',apply);
+    el.addEventListener('change',()=>{apply();renderChips();renderMeals();renderNutrients()});
+  });
   document.querySelectorAll('#fEdit [data-fx]').forEach(b=>b.addEventListener('click',()=>{
-    foods.splice(+b.dataset.fx,1);ls.set(K.fd,foods);renderFEdit();renderChips();renderMeals();renderNutrients();
+    if(!confirm(`"${foods[+b.dataset.fx].n}" 을(를) 목록에서 지웁니다.`))return;
+    foods.splice(+b.dataset.fx,1);ls.set(K.fd,foods);
+    renderFEdit();renderChips();renderMeals();renderNutrients();
   }));
+}
+/* 1인분 기준 요약 한 줄 */
+function foodSum(f){
+  return `1인분 ${fmt(f.kcal)}kcal · 단백질 ${fmt(f.p)}g · 탄수 ${fmt(f.c)}g · 지방 ${fmt(f.f)}g · 포화 ${fmt(f.sat)}g · 나트륨 ${fmt(f.na)}mg`;
 }
 function renderTEdit(){
   const tg=targets[basis];
@@ -1157,6 +1219,13 @@ document.getElementById('addEx').addEventListener('click',()=>{
 document.getElementById('addFood').addEventListener('click',()=>{
   foods.push({id:'f'+Date.now(),n:'새 음식',kcal:0,p:0,c:0,f:0,sat:0,na:0});
   ls.set(K.fd,foods);renderFEdit();renderChips();
+  const cards=document.querySelectorAll('#fEdit .foodCard');
+  const last=cards[cards.length-1];
+  if(last){
+    last.scrollIntoView({behavior:'smooth',block:'center'});
+    const nm=last.querySelector('input[data-k="n"]');
+    if(nm)setTimeout(()=>{nm.focus();nm.select()},300);
+  }
 });
 document.getElementById('exp').addEventListener('click',async()=>{
   const photos=await IDB.all();
