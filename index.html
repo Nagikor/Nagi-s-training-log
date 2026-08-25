@@ -291,6 +291,23 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   font-family:var(--mono);font-size:10.5px;color:var(--dimmer);
   padding:0 14px 10px;line-height:1.5;
 }
+
+/* ── 끼니 구분 ── */
+.slotPick{display:flex;gap:5px;padding:11px 14px 0}
+.slotPick button{
+  flex:1;padding:8px 0;border-radius:8px;cursor:pointer;
+  font-family:var(--sans);font-size:12.5px;font-weight:700;
+  background:var(--panel);color:var(--dimmer);border:1px solid var(--line);
+}
+.slotPick button.on{background:var(--amber-soft);border-color:#F0D89A;color:var(--amber-ink)}
+.slotHead{
+  display:flex;align-items:baseline;gap:8px;
+  padding:10px 14px 7px;background:var(--panel2);
+  border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);
+}
+.slotHead b{font-size:12.5px;font-weight:800}
+.slotHead span{font-family:var(--mono);font-size:10.5px;color:var(--dimmer);margin-left:auto}
+.slotEmpty{padding:12px 14px;font-size:12px;color:var(--dimmer)}
 .btn{
   display:block;width:100%;padding:13px;margin:8px 0 2px;
   font-family:var(--sans);font-size:14px;font-weight:700;
@@ -391,6 +408,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   <section class="view" id="v-food">
     <div class="panel">
       <div class="phead"><h2>자주 먹는 음식</h2><span class="sub">눌러서 추가</span></div>
+      <div class="slotPick" id="slotPick"></div>
       <div class="foodChips" id="chips"></div>
     </div>
     <div class="panel">
@@ -589,6 +607,7 @@ const NUTS=[
   {k:'na',label:'나트륨',u:'mg',col:'#6A7686'}
 ];
 const DAYS=['일','월','화','수','목','금','토'];
+const SLOTS=[{k:'b',lab:'아침'},{k:'l',lab:'점심'},{k:'d',lab:'저녁'},{k:'s',lab:'간식'}];
 const uid=()=>'x'+Math.random().toString(36).slice(2,9);
 
 /* ══════════ 상태 ══════════ */
@@ -600,6 +619,7 @@ let targets=ls.get(K.tg,DEF_TARGETS);
 let wdays=ls.get(K.wd,[2,4,0]);
 let basis=ls.get('tl_basis','std');
 let nutMode='day';
+let slot=ls.get('tl_slot','b');   // 새로 추가할 끼니
 let cur=todayStr();
 let draft={};
 let shots={};      // 현재 날짜의 사진 {exId:[dataURL,...]}
@@ -945,36 +965,59 @@ function mealFood(m){
   return m.ad ? m.ad : foods.find(x=>x.id===m.id);
 }
 
+function renderSlotPick(){
+  document.getElementById('slotPick').innerHTML=SLOTS.map(s=>
+    `<button data-slot="${s.k}" class="${slot===s.k?'on':''}">${s.lab}</button>`).join('');
+  document.querySelectorAll('#slotPick button').forEach(b=>b.addEventListener('click',()=>{
+    slot=b.dataset.slot;ls.set('tl_slot',slot);renderSlotPick();
+  }));
+}
+
 function renderChips(){
   document.getElementById('chips').innerHTML=foods.map(f=>
     `<button class="fchip" data-f="${f.id}">${esc(f.n)}<em>${fmt(f.kcal)}</em></button>`).join('')
     ||'<div class="empty" style="padding:8px 0">설정에서 음식을 등록해 주세요.</div>';
+  /* 같은 음식을 또 눌러도 배수를 올리지 않고 별개 항목으로 쌓는다 */
   document.querySelectorAll('.fchip').forEach(b=>b.addEventListener('click',()=>{
-    const list=meals[cur]||(meals[cur]=[]);
-    const hit=list.find(m=>m.id===b.dataset.f);
-    if(hit)hit.q=Math.round((hit.q+1)*10)/10;else list.push({id:b.dataset.f,q:1});
+    (meals[cur]||(meals[cur]=[])).push({id:b.dataset.f,q:1,slot});
     ls.set(K.ml,meals);renderMeals();renderNutrients();
   }));
 }
 function renderMeals(){
   const list=meals[cur]||[];
-  document.getElementById('mealCount')&&(document.getElementById('mealCount').textContent=list.length+'개');
   const host=document.getElementById('meals');
-  if(!list.length){host.innerHTML='<div class="empty">위에서 음식을 눌러 추가하세요.</div>';return}
-  host.innerHTML=list.map((m,i)=>{
-    const f=mealFood(m);if(!f)return'';
-    const tag=m.ad?'<span class="qtyUnit" style="color:var(--amber-ink)">직접</span>':'';
-    return `<div class="mealRow">
-      <div class="mealName">${esc(f.n)} ${tag}<i>${fmt(f.kcal*m.q)}kcal · 단백질 ${fmt(f.p*m.q)}g · 탄 ${fmt(f.c*m.q)}g · 지 ${fmt(f.f*m.q)}g</i></div>
-      <div class="qtyCtl">
-        <button data-m="${i}" data-d="-1">−</button>
-        <input type="number" inputmode="decimal" step="0.1" min="0" value="${m.q}" data-q="${i}">
-        <button data-m="${i}" data-d="1">＋</button>
-      </div>
-      <span class="qtyUnit">배</span>
-      <button class="del" data-edit="${i}" title="영양성분 수정" style="font-size:13px">✎</button>
-      ${m.ad?`<button class="del" data-save="${i}" title="자주 먹는 음식으로 등록" style="color:var(--amber-ink);font-size:13px">＋</button>`:''}
-      <button class="del" data-x="${i}">✕</button></div>`;
+  if(!list.length){host.innerHTML='<div class="empty">위에서 끼니를 고르고 음식을 눌러 추가하세요.</div>';return}
+
+  /* 끼니별로 묶되, 원래 배열의 인덱스를 그대로 들고 다닌다 */
+  const groups=SLOTS.map(s=>({...s,items:[]}));
+  const etc={k:'?',lab:'기타',items:[]};
+  list.forEach((m,i)=>{
+    const g=groups.find(x=>x.k===m.slot)||etc;
+    g.items.push({m,i});
+  });
+  const all=groups.concat(etc.items.length?[etc]:[]);
+
+  host.innerHTML=all.map(g=>{
+    if(!g.items.length&&g.k==='?')return'';
+    let kcal=0,pro=0;
+    g.items.forEach(({m})=>{const f=mealFood(m);if(f){kcal+=f.kcal*m.q;pro+=f.p*m.q}});
+    const head=`<div class="slotHead"><b>${g.lab}</b><span>${g.items.length?`${fmt(kcal)}kcal · 단백질 ${fmt(pro)}g`:''}</span></div>`;
+    if(!g.items.length)return head+'<div class="slotEmpty">아직 없습니다.</div>';
+    return head+g.items.map(({m,i})=>{
+      const f=mealFood(m);if(!f)return'';
+      const tag=m.ad?'<span class="qtyUnit" style="color:var(--amber-ink)">직접</span>':'';
+      return `<div class="mealRow">
+        <div class="mealName">${esc(f.n)} ${tag}<i>${fmt(f.kcal*m.q)}kcal · 단백질 ${fmt(f.p*m.q)}g · 탄 ${fmt(f.c*m.q)}g · 지 ${fmt(f.f*m.q)}g</i></div>
+        <div class="qtyCtl">
+          <button data-m="${i}" data-d="-1">−</button>
+          <input type="number" inputmode="decimal" step="0.1" min="0" value="${m.q}" data-q="${i}">
+          <button data-m="${i}" data-d="1">＋</button>
+        </div>
+        <span class="qtyUnit">배</span>
+        <button class="del" data-edit="${i}" title="영양성분 수정" style="font-size:13px">✎</button>
+        ${m.ad?`<button class="del" data-save="${i}" title="자주 먹는 음식으로 등록" style="color:var(--amber-ink);font-size:13px">＋</button>`:''}
+        <button class="del" data-x="${i}">✕</button></div>`;
+    }).join('');
   }).join('');
   host.querySelectorAll('button[data-m]').forEach(b=>b.addEventListener('click',()=>{
     const l=meals[cur],i=+b.dataset.m;
@@ -1009,7 +1052,7 @@ function renderMeals(){
     const id='f'+Date.now();
     foods.push({id,n:m.ad.n,kcal:m.ad.kcal,p:m.ad.p,c:m.ad.c,sugar:m.ad.sugar||0,f:m.ad.f,sat:m.ad.sat,na:m.ad.na});
     ls.set(K.fd,foods);
-    meals[cur][i]={id,q:m.q};ls.set(K.ml,meals);
+    meals[cur][i]={id,q:m.q,slot:m.slot};ls.set(K.ml,meals);
     renderChips();renderFEdit();renderMeals();
     alert(`"${m.ad.n}" 을(를) 자주 먹는 음식에 등록했습니다.`);
   }));
@@ -1249,7 +1292,7 @@ document.getElementById('ahAdd').addEventListener('click',()=>{
   if(!o.n){alert('음식 이름을 입력해 주세요.');return}
 
   if(ahEdit===null){
-    (meals[cur]||(meals[cur]=[])).push({ad:o,q:1});
+    (meals[cur]||(meals[cur]=[])).push({ad:o,q:1,slot});
   }else{
     const m=meals[cur][ahEdit];
     if(m.ad){
@@ -1333,7 +1376,7 @@ document.getElementById('wipe').addEventListener('click',async()=>{
 function boot(){
   document.getElementById('date').value=cur;
   document.getElementById('basis').value=basis;
-  refreshTrain();renderChips();renderMeals();renderNutrients();
+  refreshTrain();renderSlotPick();renderChips();renderMeals();renderNutrients();
   renderDayPick();renderREdit();renderFEdit();renderTEdit();updateUsage();
 }
 boot();
