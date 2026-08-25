@@ -236,6 +236,17 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 .linkLbl.on{background:#EDE7FA;border-color:#C9BAF0;color:#5B3FA8;font-weight:700}
 .linkLbl input{margin:0;accent-color:#5B3FA8}
 
+/* ── 순서 이동 ── */
+.ord{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
+.ord button{
+  width:26px;height:17px;padding:0;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);
+  color:var(--dim);font-size:9px;line-height:1;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+}
+.ord button:active{background:var(--amber-soft);color:var(--amber-ink);border-color:#F0D89A}
+.ord button:disabled{opacity:.3;cursor:default}
+
 /* ── 세션 ── */
 .sess{display:flex;align-items:center;gap:12px;padding:12px 14px}
 .sess .btn{width:auto;flex:0 0 auto;padding:11px 20px;margin:0}
@@ -1372,7 +1383,12 @@ function renderMeals(){
     return head+g.items.map(({m,i})=>{
       const f=mealFood(m);if(!f)return'';
       const tag=m.ad?'<span class="qtyUnit" style="color:var(--amber-ink)">직접</span>':'';
+      const pos=g.items.findIndex(x=>x.i===i);
       return `<div class="mealRow">
+        <div class="ord">
+          <button data-mup="${i}"${pos===0?' disabled':''} title="위로">▲</button>
+          <button data-mdn="${i}"${pos===g.items.length-1?' disabled':''} title="아래로">▼</button>
+        </div>
         <div class="mealName">${esc(f.n)} ${tag}<i>${fmt(f.kcal*m.q)}kcal · 단백질 ${fmt(f.p*m.q)}g · 탄 ${fmt(f.c*m.q)}g · 지 ${fmt(f.f*m.q)}g</i></div>
         <div class="qtyCtl">
           <button data-m="${i}" data-d="-1">−</button>
@@ -1385,6 +1401,21 @@ function renderMeals(){
         <button class="del" data-x="${i}">✕</button></div>`;
     }).join('');
   }).join('');
+  /* 같은 끼니 안에서만 자리를 바꾼다 */
+  const mMove=(i,dir)=>{
+    const arr=meals[cur],me=arr[i];
+    const sameSlot=arr.map((m,idx)=>({m,idx})).filter(x=>(x.m.slot||'?')===(me.slot||'?'));
+    const at=sameSlot.findIndex(x=>x.idx===i);
+    const to=sameSlot[at+dir];
+    if(!to)return;
+    [arr[i],arr[to.idx]]=[arr[to.idx],arr[i]];
+    ls.set(K.ml,meals);renderMeals();renderNutrients();
+  };
+  host.querySelectorAll('[data-mup]').forEach(b=>
+    b.addEventListener('click',()=>mMove(+b.dataset.mup,-1)));
+  host.querySelectorAll('[data-mdn]').forEach(b=>
+    b.addEventListener('click',()=>mMove(+b.dataset.mdn,1)));
+
   host.querySelectorAll('button[data-m]').forEach(b=>b.addEventListener('click',()=>{
     const l=meals[cur],i=+b.dataset.m;
     l[i].q=Math.round((l[i].q+ +b.dataset.d*.1)*100)/100;
@@ -1472,10 +1503,22 @@ function renderDayPick(){
     ls.set(K.wd,wdays);renderDayPick();refreshTrain();
   }));
 }
+/* 배열에서 항목 하나를 위/아래로 한 칸 옮긴다 */
+function moveItem(arr,i,dir){
+  const j=i+dir;
+  if(j<0||j>=arr.length)return false;
+  [arr[i],arr[j]]=[arr[j],arr[i]];
+  return true;
+}
+
 function renderREdit(){
   const key=document.getElementById('rSel').value,list=routines[key];
   document.getElementById('rEdit').innerHTML=list.map((ex,i)=>`
     <div class="rowEdit">
+      <div class="ord">
+        <button data-rup="${i}"${i===0?' disabled':''} title="위로">▲</button>
+        <button data-rdn="${i}"${i===list.length-1?' disabled':''} title="아래로">▼</button>
+      </div>
       <input class="nm" value="${esc(ex.n)}" data-r="${i}" data-k="n" placeholder="운동명">
       <select data-r="${i}" data-k="t" style="font-family:var(--sans);font-size:12px">
         <option value="reps"${ex.t==='reps'?' selected':''}>횟수</option>
@@ -1496,6 +1539,17 @@ function renderREdit(){
     routines[key][i][k]=(k==='sets'||k==='rest')?Math.max(1,num(el.value)):el.value;
     ls.set(K.rt,routines);refreshTrain();
   }));
+  /* 순서 이동 — 첫 항목이 되면 묶임은 자동으로 풀린다 */
+  const rMove=(i,dir)=>{
+    if(!moveItem(routines[key],i,dir))return;
+    if(routines[key][0])routines[key][0].link=false;
+    ls.set(K.rt,routines);renderREdit();refreshTrain();
+  };
+  document.querySelectorAll('#rEdit [data-rup]').forEach(b=>
+    b.addEventListener('click',()=>rMove(+b.dataset.rup,-1)));
+  document.querySelectorAll('#rEdit [data-rdn]').forEach(b=>
+    b.addEventListener('click',()=>rMove(+b.dataset.rdn,1)));
+
   /* 앞 운동과 한 세트로 묶기 (컴파운드 세트) */
   document.querySelectorAll('#rEdit [data-link]').forEach(el=>el.addEventListener('change',()=>{
     const i=+el.dataset.link;
@@ -1524,6 +1578,10 @@ function renderFEdit(){
   document.getElementById('fEdit').innerHTML=foods.map((f,i)=>`
     <div class="foodCard">
       <div class="foodHead">
+        <div class="ord">
+          <button data-fup="${i}"${i===0?' disabled':''} title="위로">▲</button>
+          <button data-fdn="${i}"${i===foods.length-1?' disabled':''} title="아래로">▼</button>
+        </div>
         <input value="${esc(f.n)}" data-f="${i}" data-k="n" placeholder="음식 이름">
         <button class="del" data-fx="${i}">✕</button>
       </div>
@@ -1548,6 +1606,14 @@ function renderFEdit(){
     el.addEventListener('input',apply);
     el.addEventListener('change',()=>{apply();renderChips();renderMeals();renderNutrients()});
   });
+  const fMove=(i,dir)=>{
+    if(!moveItem(foods,i,dir))return;
+    ls.set(K.fd,foods);renderFEdit();renderChips();
+  };
+  document.querySelectorAll('#fEdit [data-fup]').forEach(b=>
+    b.addEventListener('click',()=>fMove(+b.dataset.fup,-1)));
+  document.querySelectorAll('#fEdit [data-fdn]').forEach(b=>
+    b.addEventListener('click',()=>fMove(+b.dataset.fdn,1)));
   document.querySelectorAll('#fEdit [data-fx]').forEach(b=>b.addEventListener('click',()=>{
     if(!confirm(`"${foods[+b.dataset.fx].n}" 을(를) 목록에서 지웁니다.`))return;
     foods.splice(+b.dataset.fx,1);ls.set(K.fd,foods);
