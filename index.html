@@ -404,6 +404,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
           <div class="nutCell"><label>칼로리</label><input type="number" inputmode="decimal" id="ahkcal" placeholder="kcal"></div>
           <div class="nutCell"><label>단백질</label><input type="number" inputmode="decimal" id="ahp" placeholder="g"></div>
           <div class="nutCell"><label>탄수화물</label><input type="number" inputmode="decimal" id="ahc" placeholder="g"></div>
+          <div class="nutCell"><label>당류</label><input type="number" inputmode="decimal" id="ahsugar" placeholder="g"></div>
           <div class="nutCell"><label>지방</label><input type="number" inputmode="decimal" id="ahf" placeholder="g"></div>
           <div class="nutCell"><label>포화지방</label><input type="number" inputmode="decimal" id="ahsat" placeholder="g"></div>
           <div class="nutCell"><label>나트륨</label><input type="number" inputmode="decimal" id="ahna" placeholder="mg"></div>
@@ -562,26 +563,27 @@ const DEF_ROUTINE={
   ]
 };
 const DEF_FOODS=[
-  {id:'f1',n:'프로틴 쉐이크',kcal:120,p:25,c:3,f:2,sat:1,na:100},
-  {id:'f2',n:'하루견과',kcal:150,p:4,c:8,f:12,sat:1.5,na:5},
-  {id:'f3',n:'밥 130g',kcal:210,p:4,c:47,f:.5,sat:0,na:2},
-  {id:'f4',n:'부채살 200g',kcal:410,p:40,c:0,f:26,sat:10.5,na:120},
-  {id:'f5',n:'샐러드 70g',kcal:15,p:1,c:3,f:.3,sat:0,na:10},
-  {id:'f6',n:'삶은 계란 1개',kcal:75,p:6.5,c:.5,f:5,sat:1.6,na:70},
-  {id:'f7',n:'두부면 100g',kcal:45,p:8,c:2,f:2,sat:.3,na:15},
-  {id:'f8',n:'삼치 100g',kcal:180,p:21,c:0,f:11,sat:2.8,na:250},
-  {id:'f9',n:'연어 100g',kcal:205,p:21,c:0,f:13,sat:3,na:60},
-  {id:'f10',n:'닭가슴살 100g',kcal:110,p:23,c:0,f:2,sat:.6,na:65},
-  {id:'f11',n:'점심 일반식',kcal:900,p:40,c:110,f:30,sat:9,na:1800}
+  {id:'f1',n:'프로틴 쉐이크',kcal:120,p:25,c:3,sugar:1,f:2,sat:1,na:100},
+  {id:'f2',n:'하루견과',kcal:150,p:4,c:8,sugar:2,f:12,sat:1.5,na:5},
+  {id:'f3',n:'밥 130g',kcal:210,p:4,c:47,sugar:0,f:.5,sat:0,na:2},
+  {id:'f4',n:'부채살 200g',kcal:410,p:40,c:0,sugar:0,f:26,sat:10.5,na:120},
+  {id:'f5',n:'샐러드 70g',kcal:15,p:1,c:3,sugar:1.5,f:.3,sat:0,na:10},
+  {id:'f6',n:'삶은 계란 1개',kcal:75,p:6.5,c:.5,sugar:.3,f:5,sat:1.6,na:70},
+  {id:'f7',n:'두부면 100g',kcal:45,p:8,c:2,sugar:.5,f:2,sat:.3,na:15},
+  {id:'f8',n:'삼치 100g',kcal:180,p:21,c:0,sugar:0,f:11,sat:2.8,na:250},
+  {id:'f9',n:'연어 100g',kcal:205,p:21,c:0,sugar:0,f:13,sat:3,na:60},
+  {id:'f10',n:'닭가슴살 100g',kcal:110,p:23,c:0,sugar:0,f:2,sat:.6,na:65},
+  {id:'f11',n:'점심 일반식',kcal:900,p:40,c:110,sugar:12,f:30,sat:9,na:1800}
 ];
 const DEF_TARGETS={
-  std:{kcal:2500,p:55,c:324,f:54,sat:15,na:2000},
-  mine:{kcal:2000,p:130,c:200,f:55,sat:15,na:2000}
+  std:{kcal:2500,p:55,c:324,sugar:100,f:54,sat:15,na:2000},
+  mine:{kcal:2000,p:130,c:200,sugar:80,f:55,sat:15,na:2000}
 };
 const NUTS=[
   {k:'kcal',label:'칼로리',u:'kcal',col:'#E5A400'},
   {k:'p',label:'단백질',u:'g',col:'#12805C'},
   {k:'c',label:'탄수화물',u:'g',col:'#2F6FB8'},
+  {k:'sugar',label:'당류',u:'g',col:'#C9761E'},
   {k:'f',label:'지방',u:'g',col:'#8A5CC4'},
   {k:'sat',label:'포화지방',u:'g',col:'#C4453A'},
   {k:'na',label:'나트륨',u:'mg',col:'#6A7686'}
@@ -617,6 +619,19 @@ let tick=null;
     if(!e.id)e.id=byName[e.n]||uid();
   }));
   ls.set(K.rt,routines);ls.set(K.lg,logs);ls.set('tl_migrated',true);
+})();
+
+/* 당류 항목이 나중에 추가되어, 예전 데이터에 빈 값을 채워 준다 */
+(function addSugar(){
+  if(ls.get('tl_sugar',false))return;
+  foods.forEach(f=>{if(f.sugar===undefined)f.sugar=0});
+  ['std','mine'].forEach(k=>{
+    if(targets[k]&&targets[k].sugar===undefined)targets[k].sugar=DEF_TARGETS[k].sugar;
+  });
+  Object.keys(meals).forEach(d=>(meals[d]||[]).forEach(m=>{
+    if(m.ad&&m.ad.sugar===undefined)m.ad.sugar=0;
+  }));
+  ls.set(K.fd,foods);ls.set(K.tg,targets);ls.set(K.ml,meals);ls.set('tl_sugar',true);
 })();
 
 function todayStr(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
@@ -987,7 +1002,7 @@ function renderMeals(){
     const i=+b.dataset.save,m=meals[cur][i];
     if(!m.ad)return;
     const id='f'+Date.now();
-    foods.push({id,n:m.ad.n,kcal:m.ad.kcal,p:m.ad.p,c:m.ad.c,f:m.ad.f,sat:m.ad.sat,na:m.ad.na});
+    foods.push({id,n:m.ad.n,kcal:m.ad.kcal,p:m.ad.p,c:m.ad.c,sugar:m.ad.sugar||0,f:m.ad.f,sat:m.ad.sat,na:m.ad.na});
     ls.set(K.fd,foods);
     meals[cur][i]={id,q:m.q};ls.set(K.ml,meals);
     renderChips();renderFEdit();renderMeals();
@@ -998,7 +1013,7 @@ function renderMeals(){
   }));
 }
 function dayTotals(d){
-  const t={kcal:0,p:0,c:0,f:0,sat:0,na:0};
+  const t={kcal:0,p:0,c:0,sugar:0,f:0,sat:0,na:0};
   (meals[d]||[]).forEach(m=>{
     const f=m.ad?m.ad:foods.find(x=>x.id===m.id);
     if(!f)return;
@@ -1011,7 +1026,7 @@ function renderNutrients(){
   let tot,label;
   if(nutMode==='day'){tot=dayTotals(cur);label='선택한 날짜 기준'}
   else{
-    const s=weekStart(cur),sum={kcal:0,p:0,c:0,f:0,sat:0,na:0};let days=0;
+    const s=weekStart(cur),sum={kcal:0,p:0,c:0,sugar:0,f:0,sat:0,na:0};let days=0;
     for(let i=0;i<7;i++){
       const d=shift(s,i);if(d>todayStr())break;
       if(!(meals[d]&&meals[d].length))continue;
@@ -1070,6 +1085,7 @@ const NUT_FIELDS=[
   {k:'kcal',lab:'칼로리',ph:'kcal'},
   {k:'p',lab:'단백질',ph:'g'},
   {k:'c',lab:'탄수화물',ph:'g'},
+  {k:'sugar',lab:'당류',ph:'g'},
   {k:'f',lab:'지방',ph:'g'},
   {k:'sat',lab:'포화지방',ph:'g'},
   {k:'na',lab:'나트륨',ph:'mg'}
@@ -1111,7 +1127,7 @@ function renderFEdit(){
 }
 /* 1인분 기준 요약 한 줄 */
 function foodSum(f){
-  return `1인분 ${fmt(f.kcal)}kcal · 단백질 ${fmt(f.p)}g · 탄수 ${fmt(f.c)}g · 지방 ${fmt(f.f)}g · 포화 ${fmt(f.sat)}g · 나트륨 ${fmt(f.na)}mg`;
+  return `1인분 ${fmt(f.kcal)}kcal · 단백질 ${fmt(f.p)}g · 탄수 ${fmt(f.c)}g · 당류 ${fmt(f.sugar||0)}g · 지방 ${fmt(f.f)}g · 포화 ${fmt(f.sat)}g · 나트륨 ${fmt(f.na)}mg`;
 }
 function renderTEdit(){
   const tg=targets[basis];
@@ -1179,7 +1195,7 @@ document.getElementById('clearMeal').addEventListener('click',()=>{
 });
 /* ── 그날만 먹은 음식 직접 입력 ── */
 const ahForm=document.getElementById('adhocForm');
-function ahClear(){['ahN','ahkcal','ahp','ahc','ahf','ahsat','ahna'].forEach(id=>document.getElementById(id).value='')}
+function ahClear(){['ahN','ahkcal','ahp','ahc','ahsugar','ahf','ahsat','ahna'].forEach(id=>document.getElementById(id).value='')}
 document.getElementById('adhocBtn').addEventListener('click',()=>{
   const open=ahForm.style.display!=='none';
   ahForm.style.display=open?'none':'block';
@@ -1194,6 +1210,7 @@ document.getElementById('ahAdd').addEventListener('click',()=>{
     kcal:num(document.getElementById('ahkcal').value),
     p:num(document.getElementById('ahp').value),
     c:num(document.getElementById('ahc').value),
+    sugar:num(document.getElementById('ahsugar').value),
     f:num(document.getElementById('ahf').value),
     sat:num(document.getElementById('ahsat').value),
     na:num(document.getElementById('ahna').value)
@@ -1217,7 +1234,7 @@ document.getElementById('addEx').addEventListener('click',()=>{
   ls.set(K.rt,routines);renderREdit();refreshTrain();
 });
 document.getElementById('addFood').addEventListener('click',()=>{
-  foods.push({id:'f'+Date.now(),n:'새 음식',kcal:0,p:0,c:0,f:0,sat:0,na:0});
+  foods.push({id:'f'+Date.now(),n:'새 음식',kcal:0,p:0,c:0,sugar:0,f:0,sat:0,na:0});
   ls.set(K.fd,foods);renderFEdit();renderChips();
   const cards=document.querySelectorAll('#fEdit .foodCard');
   const last=cards[cards.length-1];
