@@ -159,26 +159,65 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 }
 .note:focus{outline:0;border-color:var(--dim);color:var(--ink)}
 
-/* ── 운동별 타이머 ── */
-.timer{
-  display:flex;align-items:center;gap:7px;margin-top:9px;
-  padding:7px 9px;border-radius:8px;
-  background:var(--panel2);border:1px solid var(--line-soft);
+/* ── 세트별 타이머 ── */
+.setTimers{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.stBtn{
+  flex:1 1 68px;min-width:68px;padding:7px 4px;border-radius:8px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
 }
-.timer.run{background:var(--amber-soft);border-color:#F0D89A}
-.tBtn{
-  flex:0 0 auto;padding:5px 11px;border-radius:6px;cursor:pointer;
-  font-family:var(--sans);font-size:11.5px;font-weight:700;
-  background:var(--panel);color:var(--dim);border:1px solid var(--line);
+.stBtn .stNo{font-family:var(--mono);font-size:9.5px;color:var(--dimmer);letter-spacing:.04em}
+.stBtn .stTime{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--dim)}
+.stBtn.done{background:var(--up-soft);border-color:#B9E3D3}
+.stBtn.done .stTime{color:var(--up)}
+.stBtn.run{background:var(--amber-soft);border-color:var(--amber)}
+.stBtn.run .stTime{color:var(--amber-ink)}
+.stBtn.run .stNo{color:var(--amber-ink)}
+.exTime{
+  margin-top:8px;font-family:var(--mono);font-size:11.5px;color:var(--dimmer);
+  display:flex;align-items:center;gap:8px;
 }
-.tBtn.go{background:var(--amber);color:#3A2A00;border-color:var(--amber)}
-.tBtn.stop{background:var(--down);color:#fff;border-color:var(--down)}
-.tVal{
-  font-family:var(--mono);font-size:15px;font-weight:700;color:var(--ink);
-  letter-spacing:.02em;flex:1;
+.exTime b{font-size:13px;color:var(--ink);font-weight:700}
+.exTime.full b{color:var(--up)}
+.tReset{background:transparent;border:0;color:var(--dimmer);font-size:11px;cursor:pointer;padding:3px 2px;margin-left:auto}
+
+/* ── 건너뛰기 ── */
+.ex.skip{opacity:.5}
+.ex.skip .sets,.ex.skip .setTimers,.ex.skip .exTime,.ex.skip .note,.ex.skip .shots{display:none}
+.skipBtn{
+  flex:0 0 auto;width:30px;height:30px;border-radius:7px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line);color:var(--dimmer);
+  font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;
 }
-.timer.run .tVal{color:var(--amber-ink)}
-.tReset{background:transparent;border:0;color:var(--dimmer);font-size:11.5px;cursor:pointer;padding:4px 2px}
+.skipBtn.on{background:var(--down-soft);border-color:#EFC4C0;color:var(--down)}
+.skipNote{
+  font-family:var(--mono);font-size:11.5px;color:var(--down);
+  padding:2px 0 0;display:flex;align-items:center;gap:8px;
+}
+.skipNote button{
+  background:transparent;border:0;color:var(--dim);font-size:11px;
+  cursor:pointer;text-decoration:underline;padding:2px;
+}
+.setBox.off input{background:var(--panel2);color:var(--dimmer);text-decoration:line-through}
+.setDrop{
+  position:absolute;top:-7px;right:-4px;width:17px;height:17px;border-radius:50%;
+  background:var(--panel);border:1px solid var(--line);color:var(--dimmer);
+  font-size:9px;line-height:1;cursor:pointer;padding:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.setDrop.on{background:var(--down);border-color:var(--down);color:#fff}
+
+/* ── 세션 ── */
+.sess{display:flex;align-items:center;gap:12px;padding:12px 14px}
+.sess .btn{width:auto;flex:0 0 auto;padding:11px 20px;margin:0}
+.sess .btn.stop{background:var(--down);color:#fff}
+.sessInfo{font-family:var(--mono);font-size:11px;color:var(--dim);line-height:1.5;flex:1}
+.sessStats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line-soft);border-top:1px solid var(--line-soft)}
+.sessCell{background:var(--panel);padding:11px 12px}
+.sessNum{font-family:var(--mono);font-size:17px;font-weight:700;margin-top:4px}
+.focusWrap{padding:12px 14px 4px}
+.focusTop{display:flex;align-items:baseline;font-family:var(--mono);font-size:11px;color:var(--dim);margin-bottom:6px}
+.focusTop b{margin-left:auto;font-size:14px;color:var(--ink)}
 
 /* ── 시간 요약 ── */
 .timeRow{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-soft);border-top:1px solid var(--line-soft)}
@@ -417,7 +456,29 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       <div class="phead"><h2>오늘 기록</h2>
         <button class="linkBtn warn" id="clearDay">이 날짜 비우기</button>
       </div>
-      <div class="hint" id="dayInfo" style="padding-bottom:12px">—</div>
+      <div class="sess">
+        <button class="btn" id="sessBtn">운동 시작</button>
+        <div class="sessInfo" id="sessInfo">시작을 누르면 세션 전체 시간이 기록됩니다.</div>
+      </div>
+      <div class="sessStats" id="sessStats" style="display:none">
+        <div class="sessCell">
+          <div class="volLabel">세션 전체</div>
+          <div class="sessNum" id="sTotal">—</div>
+        </div>
+        <div class="sessCell">
+          <div class="volLabel">실운동</div>
+          <div class="sessNum" id="sWork" style="color:var(--up)">—</div>
+        </div>
+        <div class="sessCell">
+          <div class="volLabel">휴식·준비</div>
+          <div class="sessNum" id="sRest" style="color:var(--dim)">—</div>
+        </div>
+      </div>
+      <div class="focusWrap" id="focusWrap" style="display:none">
+        <div class="focusTop"><span>집중도</span><b id="focusPct">—</b></div>
+        <div class="track"><i id="focusBar" style="width:0%;background:var(--amber)"></i></div>
+      </div>
+      <div class="hint" id="dayInfo">—</div>
     </div>
 
     <div id="routine"></div>
@@ -696,6 +757,22 @@ let tick=null;
   ls.set(K.fd,foods);ls.set(K.tg,targets);ls.set(K.ml,meals);ls.set('tl_sugar',true);
 })();
 
+/* 시간 기록이 운동 단위(sec)에서 세트 단위(secs)로 바뀌었다.
+   예전 기록은 총 시간을 세트 수로 고르게 나눠 옮긴다. */
+(function splitSecs(){
+  if(ls.get('tl_secs',false))return;
+  let touched=false;
+  Object.keys(logs).forEach(d=>(logs[d].ex||[]).forEach(e=>{
+    if(e.secs)return;
+    const n=Math.max(1,(e.v||[]).length);
+    const per=(e.sec||0)/n;
+    e.secs=new Array(n).fill(0).map(()=>Math.round(per));
+    delete e.sec;touched=true;
+  }));
+  if(touched)ls.set(K.lg,logs);
+  ls.set('tl_secs',true);
+})();
+
 function todayStr(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function dow(s){return new Date(s+'T00:00:00').getDay()}
 function isWorkout(s){return wdays.includes(dow(s))}
@@ -717,10 +794,22 @@ function mins(sec){
   if(m<60)return`${m}<small>분</small>`;
   return`${Math.floor(m/60)}<small>시간</small> ${m%60}<small>분</small>`;
 }
-/* 타이머가 도는 중이면 경과분을 더해서 실제 초를 돌려준다 */
+/* 타이머가 도는 중이면 경과분을 더해서 실제 초를 돌려준다.
+   secs 는 세트별 시간 배열, running 은 {id, set, startedAt} */
+function liveSet(id,i){
+  const base=(draft[id]&&draft[id].secs&&draft[id].secs[i])||0;
+  return running&&running.id===id&&running.set===i
+    ? base+(Date.now()-running.startedAt)/1000 : base;
+}
+/* 한 운동의 총 시간 */
 function liveSec(id){
-  const base=(draft[id]&&draft[id].sec)||0;
-  return running&&running.id===id ? base+(Date.now()-running.startedAt)/1000 : base;
+  const d=draft[id];if(!d||!d.secs)return 0;
+  return d.secs.reduce((a,_,i)=>a+liveSet(id,i),0);
+}
+/* 모든 세트에 시간이 찍혔는지 */
+function allSetsTimed(id){
+  const d=draft[id];if(!d||!d.secs||!d.secs.length)return false;
+  return d.secs.every(s=>s>0);
 }
 
 /* ══════════ 사진 ══════════ */
@@ -779,9 +868,12 @@ function loadDraft(){
       v:hit?hit.v.slice():new Array(ex.sets).fill(''),
       note:hit?(hit.note||''):'',
       n:hit&&hit.n?hit.n:ex.n,
-      sec:hit&&hit.sec?hit.sec:0
+      secs:hit&&hit.secs?hit.secs.slice():new Array(ex.sets).fill(0),
+      skip:!!(hit&&hit.skip),
+      off:hit&&hit.off?hit.off.slice():[]
     };
     while(draft[ex.id].v.length<ex.sets)draft[ex.id].v.push('');
+    while(draft[ex.id].secs.length<ex.sets)draft[ex.id].secs.push(0);
   });
 }
 function prevTotal(id){
@@ -813,27 +905,46 @@ function renderRoutine(){
       chip=`<span class="chip ${cls}">${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}</span>`;
     }else if(pv)chip=`<span class="chip flat">전회 ${fmt(pv.t)}${unit}</span>`;
     let boxes='';
-    for(let i=0;i<ex.sets;i++)
-      boxes+=`<div class="setBox"><span class="setNo">${i+1}</span><input type="number" inputmode="numeric" placeholder="—" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"></div>`;
-    const isRun=running&&running.id===ex.id;
+    for(let i=0;i<ex.sets;i++){
+      const dropped=(d.off||[]).includes(i);
+      boxes+=`<div class="setBox${dropped?' off':''}"><span class="setNo">${i+1}</span>
+      <button class="setDrop${dropped?' on':''}" data-drop="${ex.id}" data-i="${i}" title="${dropped?'되살리기':'이 세트 건너뛰기'}">${dropped?'↺':'✕'}</button>
+      <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped?' disabled':''}></div>`;
+    }
     const ph=shots[ex.id]||[];
     const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
       `<div class="shot"><img src="${src}" data-zoom="${src}" alt="자세 사진"><button data-delshot="${ex.id}" data-i="${i}">✕</button></div>`).join('')}</div>`:'';
-    html+=`<div class="ex">
-      <div class="exTop">
-        <input class="exNameIn${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false">
-        <div class="exMeta">${ex.sets}세트 · ${ex.rest}초</div>
-        <button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진">◉</button>
-      </div>
-      <div class="sets">${boxes}<span class="unit">${unit}</span></div>
+    const body=d.skip
+      ? `<div class="skipNote">오늘은 건너뜀 <button data-skip="${ex.id}">되돌리기</button></div>`
+      : `<div class="sets">${boxes}<span class="unit">${unit}</span></div>
       <div class="exFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
-      <div class="timer${isRun?' run':''}" data-tw="${ex.id}">
-        <button class="tBtn ${isRun?'stop':'go'}" data-timer="${ex.id}">${isRun?'정지':'시작'}</button>
-        <span class="tVal" data-tval="${ex.id}">${clock(liveSec(ex.id))}</span>
-        ${liveSec(ex.id)>0?`<button class="tReset" data-treset="${ex.id}">초기화</button>`:''}
+      <div class="setTimers">
+        ${Array.from({length:ex.sets},(_,i)=>{
+          if((d.off||[]).includes(i))return'';
+          const on=running&&running.id===ex.id&&running.set===i;
+          const sc=liveSet(ex.id,i);
+          return `<button class="stBtn${on?' run':sc>0?' done':''}" data-timer="${ex.id}" data-set="${i}">
+            <span class="stNo">${i+1}세트</span>
+            <span class="stTime" data-tval="${ex.id}-${i}">${sc>0||on?clock(sc):'시작'}</span>
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="exTime${allSetsTimed(ex.id)?' full':''}">
+        ${liveSec(ex.id)>0
+          ? `운동 시간 <b>${clock(liveSec(ex.id))}</b>${allSetsTimed(ex.id)?' · 전 세트 완료':''}
+             <button class="tReset" data-treset="${ex.id}">초기화</button>`
+          : '세트 버튼을 눌러 시간을 재세요'}
       </div>
       ${shotHtml}
-      <textarea class="note" rows="2" placeholder="메모" data-note="${ex.id}">${esc(d.note)}</textarea>
+      <textarea class="note" rows="2" placeholder="메모" data-note="${ex.id}">${esc(d.note)}</textarea>`;
+    html+=`<div class="ex${d.skip?' skip':''}">
+      <div class="exTop">
+        <input class="exNameIn${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
+        <div class="exMeta">${ex.sets}세트 · ${ex.rest}초</div>
+        <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}">${d.skip?'↺':'⊘'}</button>
+        ${d.skip?'':`<button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진">◉</button>`}
+      </div>
+      ${body}
     </div>`;
   });
   if(open)html+='</div>';
@@ -864,12 +975,37 @@ function renderRoutine(){
     const fit=()=>{t.style.height='auto';t.style.height=t.scrollHeight+'px'};fit();
     t.addEventListener('input',e=>{draft[e.target.dataset.note].note=e.target.value;fit()});
   });
-  host.querySelectorAll('[data-timer]').forEach(b=>b.addEventListener('click',()=>toggleTimer(b.dataset.timer)));
+  host.querySelectorAll('[data-timer]').forEach(b=>b.addEventListener('click',()=>
+    toggleTimer(b.dataset.timer,+b.dataset.set)));
   host.querySelectorAll('[data-treset]').forEach(b=>b.addEventListener('click',()=>{
     const id=b.dataset.treset;
-    if(!confirm('이 운동의 시간을 0으로 되돌립니다.'))return;
+    if(!confirm('이 운동의 세트 시간을 모두 0으로 되돌립니다.'))return;
     if(running&&running.id===id)stopTimer();
-    draft[id].sec=0;renderRoutine();renderTime();
+    draft[id].secs=draft[id].secs.map(()=>0);
+    saveLog(true);renderRoutine();renderTime();
+  }));
+  /* 오늘만 이 운동을 빼거나 되돌린다. 루틴 원본은 그대로다. */
+  host.querySelectorAll('[data-skip]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.skip,d=draft[id];
+    if(!d.skip){
+      const hasData=d.v.some(v=>String(v).trim()!=='')||d.secs.some(s=>s>0);
+      if(hasData&&!confirm('입력된 기록과 시간이 함께 지워집니다. 건너뛸까요?'))return;
+      if(running&&running.id===id){running=null;if(tick){clearInterval(tick);tick=null}}
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.off=[];
+    }else d.skip=false;
+    saveLog(true);renderRoutine();renderTime();
+  }));
+  /* 세트 하나만 빼기 */
+  host.querySelectorAll('[data-drop]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.drop,i=+b.dataset.i,d=draft[id];
+    d.off=d.off||[];
+    const at=d.off.indexOf(i);
+    if(at>=0)d.off.splice(at,1);
+    else{
+      if(running&&running.id===id&&running.set===i){running=null;if(tick){clearInterval(tick);tick=null}}
+      d.off.push(i);d.v[i]='';d.secs[i]=0;
+    }
+    saveLog(true);renderRoutine();renderTime();
   }));
   host.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{
     pickTarget=b.dataset.cam;
@@ -884,34 +1020,103 @@ function renderRoutine(){
   }));
 }
 
-/* ── 타이머 제어 ── */
+/* ══════════ 세션 (전체 운동 시간) ══════════ */
+/* sessions[날짜] = {start:ms, end:ms|null} */
+let sessions=ls.get('tl_sessions',{});
+
+function sessOf(d){return sessions[d]||null}
+function sessElapsed(d){
+  const s=sessOf(d);if(!s||!s.start)return 0;
+  return ((s.end||Date.now())-s.start)/1000;
+}
+function toggleSession(){
+  const s=sessOf(cur);
+  if(!s||!s.start){
+    sessions[cur]={start:Date.now(),end:null};
+  }else if(!s.end){
+    if(running)stopTimer();          // 돌던 세트를 확정하고 종료
+    s.end=Date.now();
+  }else{
+    if(!confirm('세션을 다시 시작하면 기존 전체 시간이 지워집니다.'))return;
+    sessions[cur]={start:Date.now(),end:null};
+  }
+  ls.set('tl_sessions',sessions);
+  renderSession();renderRoutine();
+}
+function renderSession(){
+  const s=sessOf(cur),btn=document.getElementById('sessBtn'),info=document.getElementById('sessInfo');
+  const stats=document.getElementById('sessStats'),fw=document.getElementById('focusWrap');
+
+  if(!s||!s.start){
+    btn.textContent='운동 시작';btn.className='btn';
+    info.textContent='시작을 누르면 세션 전체 시간이 기록됩니다.';
+    stats.style.display='none';fw.style.display='none';
+    if(sessTick){clearInterval(sessTick);sessTick=null}
+    return;
+  }
+  const running_=!s.end;
+  btn.textContent=running_?'운동 종료':'다시 시작';
+  btn.className='btn'+(running_?' stop':' ghost');
+
+  const t=new Date(s.start);
+  const hh=String(t.getHours()).padStart(2,'0'),mm=String(t.getMinutes()).padStart(2,'0');
+  const total=sessElapsed(cur),work=daySec(cur),rest=Math.max(0,total-work);
+
+  info.innerHTML=running_
+    ? `${hh}:${mm} 시작 · 진행 중 <b style="color:var(--down)">${clock(total)}</b>`
+    : `${hh}:${mm} 시작 · 종료됨`;
+
+  stats.style.display='';
+  document.getElementById('sTotal').textContent=clock(total);
+  document.getElementById('sWork').textContent=clock(work);
+  document.getElementById('sRest').textContent=clock(rest);
+
+  /* 집중도 = 실운동 시간 / 세션 전체 시간 */
+  if(total>0){
+    fw.style.display='';
+    const pc=Math.min(100,Math.round(work/total*100));
+    document.getElementById('focusPct').textContent=pc+'%';
+    const bar=document.getElementById('focusBar');
+    bar.style.width=pc+'%';
+    bar.style.background=pc>=50?'var(--up)':pc>=30?'var(--amber)':'var(--down)';
+  }else fw.style.display='none';
+
+  /* 진행 중이면 1초마다 갱신 */
+  if(running_&&!sessTick)sessTick=setInterval(renderSession,1000);
+  if(!running_&&sessTick){clearInterval(sessTick);sessTick=null}
+}
+let sessTick=null;
+
+/* ── 세트 타이머 ── */
 function stopTimer(){
   if(!running)return;
-  const id=running.id;
-  draft[id].sec=(draft[id].sec||0)+(Date.now()-running.startedAt)/1000;
+  const{id,set,startedAt}=running;
+  draft[id].secs[set]=(draft[id].secs[set]||0)+(Date.now()-startedAt)/1000;
   running=null;
   if(tick){clearInterval(tick);tick=null}
-  saveLog(true);   // 시간이 날아가지 않게 바로 저장
+  saveLog(true);
 }
-function toggleTimer(id){
-  if(running&&running.id===id){stopTimer();renderRoutine();renderTime();return}
-  if(running)stopTimer();          // 다른 운동이 돌고 있으면 먼저 멈춘다
-  running={id,startedAt:Date.now()};
+function toggleTimer(id,set){
+  if(running&&running.id===id&&running.set===set){
+    stopTimer();renderRoutine();renderTime();return;
+  }
+  if(running)stopTimer();          // 다른 세트가 돌고 있으면 먼저 확정
+  running={id,set,startedAt:Date.now()};
   if(tick)clearInterval(tick);
   tick=setInterval(()=>{
-    const el=document.querySelector(`[data-tval="${id}"]`);
-    if(el)el.textContent=clock(liveSec(id));
-    renderTime();
+    const el=document.querySelector(`[data-tval="${id}-${set}"]`);
+    if(el)el.textContent=clock(liveSet(id,set));
+    renderTime();renderSession();
   },1000);
   renderRoutine();
 }
-/* 하루 총 운동시간(초) */
+/* 하루 총 운동시간(초) — 세트 시간의 합 */
 function daySec(d){
   if(d===cur){
     let s=0;Object.keys(draft).forEach(id=>s+=liveSec(id));return s;
   }
   const lg=logs[d];if(!lg||!lg.ex)return 0;
-  return lg.ex.reduce((a,e)=>a+(e.sec||0),0);
+  return lg.ex.reduce((a,e)=>a+((e.secs||[]).reduce((x,y)=>x+(y||0),0)),0);
 }
 function weekSec(anchor){
   const s=weekStart(anchor);let t=0;
@@ -935,7 +1140,8 @@ function weekVolume(anchor){
   for(let i=0;i<7;i++){
     const lg=logs[shift(s,i)];if(!lg||!lg.ex)continue;
     lg.ex.forEach(e=>{
-      const t=e.v.reduce((a,b)=>a+num(b),0);
+      if(e.skip)return;
+      const t=(e.v||[]).reduce((a,b)=>a+num(b),0);
       if(e.t==='hold')hold+=t;else reps+=t;
     });
   }
@@ -961,17 +1167,24 @@ function renderVolume(){
 }
 function updateStat(){
   const list=isWorkout(cur)?routines.workout:routines.rest;
-  let done=0,total=0;
+  let done=0,total=0,skipped=0;
   list.forEach(ex=>{
-    total+=ex.sets;
-    (draft[ex.id]?draft[ex.id].v:[]).forEach(v=>{if(String(v).trim()!=='')done++});
+    const d=draft[ex.id];if(!d)return;
+    if(d.skip){skipped++;return}
+    for(let i=0;i<ex.sets;i++){
+      if((d.off||[]).includes(i))continue;
+      total++;
+      if(String(d.v[i]??'').trim()!=='')done++;
+    }
   });
-  document.getElementById('saveStat').innerHTML=`${isWorkout(cur)?'운동일':'휴식일'} · <b>${done}</b>/${total} 세트 입력됨`;
+  const sk=skipped?` · ${skipped}개 건너뜀`:'';
+  document.getElementById('saveStat').innerHTML=`${isWorkout(cur)?'운동일':'휴식일'} · <b>${done}</b>/${total} 세트 입력됨${sk}`;
   const lg=logs[cur];
   const nShot=Object.values(shots).reduce((a,b)=>a+b.length,0);
   const sec=daySec(cur);
   const bits=[];
-  if(lg)bits.push(`저장된 운동 ${lg.ex.length}개`);
+  if(lg){const act=lg.ex.filter(e=>!e.skip).length,sk=lg.ex.length-act;
+    bits.push(`저장된 운동 ${act}개`);if(sk)bits.push(`건너뜀 ${sk}개`);}
   if(sec>0)bits.push(`운동시간 ${clock(sec)}`);
   if(nShot)bits.push(`사진 ${nShot}장`);
   document.getElementById('dayInfo').textContent=bits.length?bits.join(' · '):'아직 저장된 기록이 없습니다.';
@@ -981,13 +1194,18 @@ function saveLog(silent){
   const ex=[];
   list.forEach(x=>{
     const d=draft[x.id];if(!d)return;
-    const sec=Math.round(d.sec||0);
-    if(d.v.some(v=>String(v).trim()!=='')||d.note.trim()!==''||sec>0)
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,sec});
+    const secs=(d.secs||[]).map(s=>Math.round(s||0));
+    const hasTime=secs.some(s=>s>0);
+    const off=(d.off||[]).slice();
+    if(d.skip){
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:d.note,secs:[],skip:true,off:[]});
+    }else if(d.v.some(v=>String(v).trim()!=='')||d.note.trim()!==''||hasTime||off.length){
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,off});
+    }
   });
   if(ex.length)logs[cur]={ex};else delete logs[cur];
   ls.set(K.lg,logs);
-  if(silent===true){renderVolume();renderTime();updateStat();return}
+  if(silent===true){renderVolume();renderTime();renderSession();updateStat();return}
   renderRoutine();renderVolume();renderTime();updateStat();
   flash('저장됨');
 }
@@ -995,8 +1213,9 @@ async function clearDay(){
   if(!confirm(`${cur} 기록을 모두 지웁니다.\n입력값·메모·사진·시간이 함께 사라집니다.`))return;
   if(running){running=null;if(tick){clearInterval(tick);tick=null}}
   delete logs[cur];ls.set(K.lg,logs);
+  delete sessions[cur];ls.set('tl_sessions',sessions);
   for(const id of Object.keys(shots))await IDB.del(cur+'::'+id);
-  shots={};loadDraft();renderRoutine();renderVolume();renderTime();updateStat();updateUsage();
+  shots={};loadDraft();renderRoutine();renderVolume();renderTime();renderSession();updateStat();updateUsage();
   flash('비웠음');
 }
 
@@ -1283,7 +1502,7 @@ function flash(msg){
 }
 async function refreshTrain(){
   await loadShots();
-  loadDraft();renderRoutine();renderVolume();renderTime();updateStat();
+  loadDraft();renderRoutine();renderVolume();renderTime();renderSession();updateStat();
   const t=document.getElementById('daytag');
   t.textContent=DAYS[dow(cur)]+'·'+(isWorkout(cur)?'운동':'휴식');
   t.className='daytag'+(isWorkout(cur)?' on':'');
@@ -1318,6 +1537,7 @@ document.getElementById('prevD').addEventListener('click',()=>goDate(shift(cur,-
 document.getElementById('nextD').addEventListener('click',()=>goDate(shift(cur,1)));
 document.getElementById('save').addEventListener('click',()=>saveLog(false));
 document.getElementById('clearDay').addEventListener('click',clearDay);
+document.getElementById('sessBtn').addEventListener('click',toggleSession);
 document.getElementById('wIn').addEventListener('input',e=>{
   const v=num(e.target.value);
   if(v>0)weights[cur]=Math.round(v*10)/10;else delete weights[cur];
@@ -1416,7 +1636,7 @@ document.getElementById('addFood').addEventListener('click',()=>{
 });
 document.getElementById('exp').addEventListener('click',async()=>{
   const photos=await IDB.all();
-  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,photos});
+  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,photos});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
   a.download='nagis-training-log_'+todayStr()+'.json';a.click();
@@ -1435,6 +1655,7 @@ document.getElementById('imp').addEventListener('click',()=>{
         if(d.targets){targets=d.targets;ls.set(K.tg,targets)}
         if(d.wdays){wdays=d.wdays;ls.set(K.wd,wdays)}
         if(d.weights){weights=d.weights;ls.set('tl_weights',weights)}
+        if(d.sessions){sessions=d.sessions;ls.set('tl_sessions',sessions)}
         if(d.photos){for(const k of Object.keys(d.photos))await IDB.set(k,d.photos[k])}
         ls.set('tl_migrated',true);boot();alert('불러왔습니다.');
       }catch(e){alert('파일을 읽을 수 없습니다.')}
@@ -1445,14 +1666,14 @@ document.getElementById('imp').addEventListener('click',()=>{
 });
 document.getElementById('wipeLogs').addEventListener('click',async()=>{
   if(!confirm('모든 날짜의 운동 기록과 사진을 지웁니다.\n루틴·음식·식단은 남습니다.'))return;
-  logs={};ls.set(K.lg,logs);await IDB.clear();
+  logs={};ls.set(K.lg,logs);sessions={};ls.set('tl_sessions',sessions);await IDB.clear();
   boot();alert('운동 기록을 지웠습니다.');
 });
 document.getElementById('wipe').addEventListener('click',async()=>{
   if(!confirm('모든 기록이 지워집니다. 계속할까요?'))return;
   Object.values(K).forEach(k=>localStorage.removeItem(k));
-  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');await IDB.clear();
-  weights={};
+  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');await IDB.clear();
+  weights={};sessions={};
   routines=JSON.parse(JSON.stringify(DEF_ROUTINE));logs={};
   foods=JSON.parse(JSON.stringify(DEF_FOODS));meals={};
   targets=JSON.parse(JSON.stringify(DEF_TARGETS));wdays=[2,4,0];basis='std';

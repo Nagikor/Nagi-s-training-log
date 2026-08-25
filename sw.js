@@ -1,5 +1,5 @@
 /* 훈련 기록 — 오프라인 캐시 */
-const CACHE = 'training-log-v10';
+const CACHE = 'training-log-v12';
 
 const ASSETS = [
   './',
