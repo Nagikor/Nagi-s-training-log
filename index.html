@@ -425,6 +425,29 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 
   <section class="view" id="v-food">
     <div class="panel">
+      <div class="phead"><h2>체중</h2><span class="sub">아침 공복 기준 권장</span></div>
+      <div class="wRow">
+        <input type="number" inputmode="decimal" step="0.1" id="wIn" placeholder="—">
+        <span class="wUnit">kg</span>
+        <div class="wDelta">
+          <div class="wLine" id="wPrev">—</div>
+          <div class="wLine" id="wWeek">—</div>
+        </div>
+      </div>
+      <div class="wStats">
+        <div class="wCell">
+          <div class="volLabel">이번 주 평균</div>
+          <div class="wNum" id="wAvg">—</div>
+        </div>
+        <div class="wCell">
+          <div class="volLabel">전주 평균 대비</div>
+          <div class="wNum" id="wDiff">—</div>
+        </div>
+      </div>
+      <div class="hint">하루 수치는 수분·나트륨 영향으로 1kg 이상 흔들립니다. <b>주 평균의 흐름</b>으로 보세요.</div>
+    </div>
+
+    <div class="panel">
       <div class="phead"><h2>자주 먹는 음식</h2><span class="sub">눌러서 추가</span></div>
       <div class="slotPick" id="slotPick"></div>
       <div class="foodChips" id="chips"></div>
@@ -453,29 +476,6 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       </div>
       <div id="meals"></div>
     </div>
-    <div class="panel">
-      <div class="phead"><h2>체중</h2><span class="sub">아침 공복 기준 권장</span></div>
-      <div class="wRow">
-        <input type="number" inputmode="decimal" step="0.1" id="wIn" placeholder="—">
-        <span class="wUnit">kg</span>
-        <div class="wDelta">
-          <div class="wLine" id="wPrev">—</div>
-          <div class="wLine" id="wWeek">—</div>
-        </div>
-      </div>
-      <div class="wStats">
-        <div class="wCell">
-          <div class="volLabel">이번 주 평균</div>
-          <div class="wNum" id="wAvg">—</div>
-        </div>
-        <div class="wCell">
-          <div class="volLabel">전주 평균 대비</div>
-          <div class="wNum" id="wDiff">—</div>
-        </div>
-      </div>
-      <div class="hint">하루 수치는 수분·나트륨 영향으로 1kg 이상 흔들립니다. <b>주 평균의 흐름</b>으로 보세요.</div>
-    </div>
-
     <div class="panel">
       <div class="phead"><h2>충족률</h2>
         <div class="toggle">
