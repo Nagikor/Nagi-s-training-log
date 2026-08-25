@@ -207,6 +207,35 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 }
 .setDrop.on{background:var(--down);border-color:var(--down);color:#fff}
 
+/* ── 컴파운드 세트 ── */
+.cmpTag{
+  display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:700;
+  letter-spacing:.08em;padding:2px 7px;border-radius:20px;
+  background:#EDE7FA;color:#5B3FA8;margin-left:6px;vertical-align:middle;
+}
+.mv{padding:10px 0 0;border-top:1px dashed var(--line);margin-top:10px}
+.mv:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.mvTop{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.mvName{
+  flex:1;min-width:0;font-family:var(--sans);font-size:13px;font-weight:700;
+  background:transparent;color:var(--ink);border:0;
+  border-bottom:1px dashed transparent;padding:1px 0;
+}
+.mvName:focus{outline:0;border-bottom-color:var(--amber)}
+.mvName.renamed{color:var(--amber-ink);border-bottom-color:#F0D89A}
+.mvNo{
+  font-family:var(--mono);font-size:9.5px;font-weight:700;color:#5B3FA8;
+  background:#EDE7FA;border-radius:4px;padding:2px 5px;flex:0 0 auto;
+}
+.mvFoot{display:flex;align-items:center;gap:8px;margin-top:7px;flex-wrap:wrap}
+.linkLbl{
+  display:flex;align-items:center;gap:5px;flex:0 0 auto;
+  font-size:11.5px;color:var(--dimmer);white-space:nowrap;cursor:pointer;
+  padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
+}
+.linkLbl.on{background:#EDE7FA;border-color:#C9BAF0;color:#5B3FA8;font-weight:700}
+.linkLbl input{margin:0;accent-color:#5B3FA8}
+
 /* ── 세션 ── */
 .sess{display:flex;align-items:center;gap:12px;padding:12px 14px}
 .sess .btn{width:auto;flex:0 0 auto;padding:11px 20px;margin:0}
@@ -564,7 +593,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       </div>
       <div id="rEdit"></div>
       <div class="btnRow"><button class="btn ghost" id="addEx">＋ 운동 추가</button></div>
-      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다. 여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
+      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
     </div>
 
     <div class="panel">
@@ -888,64 +917,100 @@ function renderRoutine(){
   const list=isWorkout(cur)?routines.workout:routines.rest;
   const host=document.getElementById('routine');
   if(!list.length){host.innerHTML='<div class="panel"><div class="empty">등록된 운동이 없습니다.<br>설정에서 루틴을 추가해 주세요.</div></div>';return}
-  let html='',sec=null,open=false;
+
+  /* link 가 켜진 운동은 바로 앞 운동과 한 세트로 묶인다 */
+  const groups=[];
   list.forEach(ex=>{
-    if(ex.s!==sec){
+    if(ex.link&&groups.length)groups[groups.length-1].push(ex);
+    else groups.push([ex]);
+  });
+
+  let html='',sec=null,open=false;
+  groups.forEach(g=>{
+    const lead=g[0];
+    if(lead.s!==sec){
       if(open)html+='</div>';
-      sec=ex.s;html+=`<div class="secLabel">${esc(sec)}</div><div class="panel">`;open=true;
+      sec=lead.s;html+=`<div class="secLabel">${esc(sec)}</div><div class="panel">`;open=true;
     }
-    const d=draft[ex.id]||{v:[],note:'',n:ex.n};
-    const unit=ex.t==='hold'?'초':'회';
-    const tot=d.v.reduce((a,b)=>a+num(b),0);
-    const pv=prevTotal(ex.id);
-    let chip='<span class="chip new">첫 기록</span>';
-    if(pv&&tot>0){
-      const df=tot-pv.t,cls=df>0?'up':df<0?'down':'flat';
-      const was=pv.n&&pv.n!==d.n?` · ${esc(pv.n)}`:'';
-      chip=`<span class="chip ${cls}">${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}</span>`;
-    }else if(pv)chip=`<span class="chip flat">전회 ${fmt(pv.t)}${unit}</span>`;
-    let boxes='';
-    for(let i=0;i<ex.sets;i++){
-      const dropped=(d.off||[]).includes(i);
-      boxes+=`<div class="setBox${dropped?' off':''}"><span class="setNo">${i+1}</span>
-      <button class="setDrop${dropped?' on':''}" data-drop="${ex.id}" data-i="${i}" title="${dropped?'되살리기':'이 세트 건너뛰기'}">${dropped?'↺':'✕'}</button>
-      <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped?' disabled':''}></div>`;
-    }
-    const ph=shots[ex.id]||[];
-    const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
-      `<div class="shot"><img src="${src}" data-zoom="${src}" alt="자세 사진"><button data-delshot="${ex.id}" data-i="${i}">✕</button></div>`).join('')}</div>`:'';
-    const body=d.skip
-      ? `<div class="skipNote">오늘은 건너뜀 <button data-skip="${ex.id}">되돌리기</button></div>`
-      : `<div class="sets">${boxes}<span class="unit">${unit}</span></div>
-      <div class="exFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
+    const cmp=g.length>1;
+    const nSet=Math.max(...g.map(x=>x.sets));
+    const dl=draft[lead.id]||{v:[],note:'',n:lead.n,secs:[],off:[]};
+    const gSkip=g.every(x=>(draft[x.id]||{}).skip);
+
+    /* 동작별 블록 */
+    const movs=g.map((ex,mi)=>{
+      const d=draft[ex.id]||{v:[],note:'',n:ex.n,secs:[],off:[]};
+      const unit=ex.t==='hold'?'초':'회';
+      const tot=d.v.reduce((a,b)=>a+num(b),0);
+      const pv=prevTotal(ex.id);
+      let chip='<span class="chip new">첫 기록</span>';
+      if(pv&&tot>0){
+        const df=tot-pv.t,cls=df>0?'up':df<0?'down':'flat';
+        const was=pv.n&&pv.n!==d.n?` · ${esc(pv.n)}`:'';
+        chip=`<span class="chip ${cls}">${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}</span>`;
+      }else if(pv)chip=`<span class="chip flat">전회 ${fmt(pv.t)}${unit}</span>`;
+
+      let boxes='';
+      for(let i=0;i<ex.sets;i++){
+        const dropped=(d.off||[]).includes(i);
+        boxes+=`<div class="setBox${dropped?' off':''}"><span class="setNo">${i+1}</span>
+        <button class="setDrop${dropped?' on':''}" data-drop="${ex.id}" data-i="${i}" title="${dropped?'되살리기':'이 세트 건너뛰기'}">${dropped?'↺':'✕'}</button>
+        <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}></div>`;
+      }
+      const ph=shots[ex.id]||[];
+      const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
+        `<div class="shot"><img src="${src}" data-zoom="${src}" alt="자세 사진"><button data-delshot="${ex.id}" data-i="${i}">✕</button></div>`).join('')}</div>`:'';
+
+      const head=cmp
+        ? `<div class="mvTop"><span class="mvNo">${String.fromCharCode(65+mi)}</span>
+             <input class="mvName${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
+             <span class="exMeta">${ex.sets}×${unit}</span>
+             <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}" style="width:26px;height:26px;font-size:12px">${d.skip?'↺':'⊘'}</button>
+             <button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진" style="width:26px;height:26px;font-size:12px">◉</button></div>`
+        : `<div class="exTop">
+             <input class="exNameIn${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
+             <div class="exMeta">${ex.sets}세트 · ${ex.rest}초</div>
+             <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}">${d.skip?'↺':'⊘'}</button>
+             ${d.skip?'':`<button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진">◉</button>`}</div>`;
+
+      if(d.skip)return `<div class="mv${cmp?'':''}">${head}<div class="skipNote">오늘은 건너뜀 <button data-skip="${ex.id}">되돌리기</button></div></div>`;
+      return `<div class="mv">${head}
+        <div class="sets">${boxes}<span class="unit">${unit}</span></div>
+        <div class="mvFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
+        ${shotHtml}
+        ${cmp?'':`<textarea class="note" rows="2" placeholder="메모" data-note="${ex.id}">${esc(d.note)}</textarea>`}</div>`;
+    }).join('');
+
+    /* 세트 타이머는 묶음 단위로 하나. 시간은 대표 운동에 저장한다. */
+    const timers=gSkip?'':`
       <div class="setTimers">
-        ${Array.from({length:ex.sets},(_,i)=>{
-          if((d.off||[]).includes(i))return'';
-          const on=running&&running.id===ex.id&&running.set===i;
-          const sc=liveSet(ex.id,i);
-          return `<button class="stBtn${on?' run':sc>0?' done':''}" data-timer="${ex.id}" data-set="${i}">
+        ${Array.from({length:nSet},(_,i)=>{
+          if((dl.off||[]).includes(i))return'';
+          const on=running&&running.id===lead.id&&running.set===i;
+          const sc=liveSet(lead.id,i);
+          return `<button class="stBtn${on?' run':sc>0?' done':''}" data-timer="${lead.id}" data-set="${i}">
             <span class="stNo">${i+1}세트</span>
-            <span class="stTime" data-tval="${ex.id}-${i}">${sc>0||on?clock(sc):'시작'}</span>
+            <span class="stTime" data-tval="${lead.id}-${i}">${sc>0||on?clock(sc):'시작'}</span>
           </button>`;
         }).join('')}
       </div>
-      <div class="exTime${allSetsTimed(ex.id)?' full':''}">
-        ${liveSec(ex.id)>0
-          ? `운동 시간 <b>${clock(liveSec(ex.id))}</b>${allSetsTimed(ex.id)?' · 전 세트 완료':''}
-             <button class="tReset" data-treset="${ex.id}">초기화</button>`
+      <div class="exTime${allSetsTimed(lead.id)?' full':''}">
+        ${liveSec(lead.id)>0
+          ? `${cmp?'묶음 ':''}운동 시간 <b>${clock(liveSec(lead.id))}</b>${allSetsTimed(lead.id)?' · 전 세트 완료':''}
+             <button class="tReset" data-treset="${lead.id}">초기화</button>`
           : '세트 버튼을 눌러 시간을 재세요'}
-      </div>
-      ${shotHtml}
-      <textarea class="note" rows="2" placeholder="메모" data-note="${ex.id}">${esc(d.note)}</textarea>`;
-    html+=`<div class="ex${d.skip?' skip':''}">
-      <div class="exTop">
-        <input class="exNameIn${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
-        <div class="exMeta">${ex.sets}세트 · ${ex.rest}초</div>
-        <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}">${d.skip?'↺':'⊘'}</button>
-        ${d.skip?'':`<button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진">◉</button>`}
-      </div>
-      ${body}
-    </div>`;
+      </div>`;
+
+    const cmpHead=cmp
+      ? `<div class="exTop" style="margin-bottom:4px">
+           <div class="exName">컴파운드 세트<span class="cmpTag">${g.length}종 · ${nSet}세트</span></div>
+           <div class="exMeta">휴식 ${lead.rest}초</div></div>`
+      : '';
+    const cmpNote=cmp
+      ? `<textarea class="note" rows="2" placeholder="메모" data-note="${lead.id}">${esc(dl.note)}</textarea>`
+      : '';
+
+    html+=`<div class="ex${gSkip?' skip':''}">${cmpHead}${movs}${timers}${cmpNote}</div>`;
   });
   if(open)html+='</div>';
   host.innerHTML=html;
@@ -953,12 +1018,14 @@ function renderRoutine(){
   host.querySelectorAll('input[data-ex]').forEach(inp=>inp.addEventListener('input',e=>{
     const id=e.target.dataset.ex;
     draft[id].v[+e.target.dataset.i]=e.target.value;
-    const card=e.target.closest('.ex'),ex=list.find(x=>x.id===id);
+    const card=e.target.closest('.mv')||e.target.closest('.ex');
+    const ex=list.find(x=>x.id===id);
     const unit=ex.t==='hold'?'초':'회';
     const tot=draft[id].v.reduce((a,b)=>a+num(b),0);
-    card.querySelector('.total').innerHTML=`합계 <b>${fmt(tot)}</b>${unit}`;
+    const totEl=card.querySelector('.total');
+    if(totEl)totEl.innerHTML=`합계 <b>${fmt(tot)}</b>${unit}`;
     const pv=prevTotal(id),chipEl=card.querySelector('.chip');
-    if(pv&&tot>0){
+    if(pv&&tot>0&&chipEl){
       const df=tot-pv.t;
       chipEl.className='chip '+(df>0?'up':df<0?'down':'flat');
       const was=pv.n&&pv.n!==draft[id].n?` · ${pv.n}`:'';
@@ -1417,15 +1484,30 @@ function renderREdit(){
       <input class="n" type="number" value="${ex.rest}" data-r="${i}" data-k="rest">
       <button class="del" data-rx="${i}">✕</button>
     </div>
-    <div class="rowEdit" style="padding-top:0;border:0"><input class="nm" value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름" style="font-size:11.5px;color:var(--dim)"></div>
+    <div class="rowEdit" style="padding-top:0;border:0;gap:8px">
+      <input class="nm" value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름" style="font-size:11.5px;color:var(--dim)">
+      ${i>0?`<label class="linkLbl${ex.link?' on':''}">
+        <input type="checkbox" data-link="${i}"${ex.link?' checked':''}> 위와 묶기</label>`:''}
+    </div>
   `).join('')||'<div class="empty">운동을 추가해 주세요.</div>';
+
   document.querySelectorAll('#rEdit [data-r]').forEach(el=>el.addEventListener('change',()=>{
     const i=+el.dataset.r,k=el.dataset.k;
     routines[key][i][k]=(k==='sets'||k==='rest')?Math.max(1,num(el.value)):el.value;
     ls.set(K.rt,routines);refreshTrain();
   }));
+  /* 앞 운동과 한 세트로 묶기 (컴파운드 세트) */
+  document.querySelectorAll('#rEdit [data-link]').forEach(el=>el.addEventListener('change',()=>{
+    const i=+el.dataset.link;
+    routines[key][i].link=el.checked;
+    if(el.checked)routines[key][i].s=routines[key][i-1].s;   // 파트를 앞과 맞춘다
+    ls.set(K.rt,routines);renderREdit();refreshTrain();
+  }));
   document.querySelectorAll('#rEdit [data-rx]').forEach(b=>b.addEventListener('click',()=>{
-    routines[key].splice(+b.dataset.rx,1);ls.set(K.rt,routines);renderREdit();refreshTrain();
+    const ri=+b.dataset.rx;
+    if(routines[key][ri+1]&&routines[key][ri+1].link&&!routines[key][ri].link)
+      routines[key][ri+1].link=false;   // 대표가 사라지면 묶음을 푼다
+    routines[key].splice(ri,1);ls.set(K.rt,routines);renderREdit();refreshTrain();
   }));
 }
 const NUT_FIELDS=[
@@ -1620,7 +1702,7 @@ document.getElementById('basis').addEventListener('change',e=>{
 });
 document.getElementById('addEx').addEventListener('click',()=>{
   const key=document.getElementById('rSel').value,last=routines[key][routines[key].length-1];
-  routines[key].push({id:uid(),s:last?last.s:'파트 1',n:'새 운동',t:'reps',sets:3,rest:60});
+  routines[key].push({id:uid(),s:last?last.s:'파트 1',n:'새 운동',t:'reps',sets:3,rest:60,link:false});
   ls.set(K.rt,routines);renderREdit();refreshTrain();
 });
 document.getElementById('addFood').addEventListener('click',()=>{
