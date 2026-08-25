@@ -413,7 +413,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
           <button class="btn" id="ahAdd">오늘 식단에 추가</button>
           <button class="btn ghost" id="ahCancel" style="flex:0 0 88px">취소</button>
         </div>
-        <div class="hint" style="padding-top:0">비워둔 칸은 0으로 계산됩니다. 이 음식은 오늘 기록에만 남고 목록에는 등록되지 않습니다.</div>
+        <div class="hint" style="padding-top:0" id="ahHint">비워둔 칸은 0으로 계산됩니다. 이 음식은 오늘 기록에만 남고 목록에는 등록되지 않습니다.</div>
       </div>
       <div id="meals"></div>
     </div>
@@ -972,6 +972,7 @@ function renderMeals(){
         <button data-m="${i}" data-d="1">＋</button>
       </div>
       <span class="qtyUnit">배</span>
+      <button class="del" data-edit="${i}" title="영양성분 수정" style="font-size:13px">✎</button>
       ${m.ad?`<button class="del" data-save="${i}" title="자주 먹는 음식으로 등록" style="color:var(--amber-ink);font-size:13px">＋</button>`:''}
       <button class="del" data-x="${i}">✕</button></div>`;
   }).join('');
@@ -997,6 +998,10 @@ function renderMeals(){
       renderMeals();renderNutrients();
     });
   });
+  /* 수정 버튼 — 영양성분을 폼에 채워서 연다 */
+  host.querySelectorAll('button[data-edit]').forEach(b=>b.addEventListener('click',()=>{
+    openAhForm(+b.dataset.edit);
+  }));
   /* 직접 입력한 음식을 자주 먹는 목록으로 승격 */
   host.querySelectorAll('button[data-save]').forEach(b=>b.addEventListener('click',()=>{
     const i=+b.dataset.save,m=meals[cur][i];
@@ -1162,6 +1167,7 @@ async function refreshTrain(){
 }
 async function goDate(s){
   if(running)stopTimer();          // 날짜를 옮기기 전에 시간을 확정 저장
+  if(typeof ahClose==='function')ahClose();
   cur=s;document.getElementById('date').value=cur;
   await refreshTrain();renderMeals();renderNutrients();
 }
@@ -1193,32 +1199,68 @@ document.getElementById('clearMeal').addEventListener('click',()=>{
   if(!confirm('오늘 식단 기록을 지웁니다.'))return;
   delete meals[cur];ls.set(K.ml,meals);renderMeals();renderNutrients();
 });
-/* ── 그날만 먹은 음식 직접 입력 ── */
+/* ── 음식 직접 입력 · 수정 ──
+   ahEdit 가 null 이면 새로 추가, 숫자면 그 항목을 수정한다. */
 const ahForm=document.getElementById('adhocForm');
-function ahClear(){['ahN','ahkcal','ahp','ahc','ahsugar','ahf','ahsat','ahna'].forEach(id=>document.getElementById(id).value='')}
+const AH=['kcal','p','c','sugar','f','sat','na'];
+let ahEdit=null;
+
+function ahClear(){
+  document.getElementById('ahN').value='';
+  AH.forEach(k=>document.getElementById('ah'+k).value='');
+}
+function ahClose(){ahForm.style.display='none';ahEdit=null;ahClear();
+  document.getElementById('ahAdd').textContent='오늘 식단에 추가';
+  document.getElementById('ahHint').textContent='비워둔 칸은 0으로 계산됩니다. 이 음식은 오늘 기록에만 남고 목록에는 등록되지 않습니다.';
+}
+function openAhForm(i){
+  ahEdit=(i===undefined||i===null)?null:i;
+  if(ahEdit===null){
+    ahClear();
+    document.getElementById('ahAdd').textContent='오늘 식단에 추가';
+    document.getElementById('ahHint').textContent='비워둔 칸은 0으로 계산됩니다. 이 음식은 오늘 기록에만 남고 목록에는 등록되지 않습니다.';
+  }else{
+    const m=meals[cur][ahEdit],f=mealFood(m);
+    if(!f){ahEdit=null;return}
+    document.getElementById('ahN').value=f.n;
+    AH.forEach(k=>document.getElementById('ah'+k).value=(f[k]??0));
+    document.getElementById('ahAdd').textContent='수정 내용 저장';
+    document.getElementById('ahHint').textContent=m.ad
+      ? '이 음식은 오늘 기록에만 반영됩니다.'
+      : '등록된 음식이라 저장하면 자주 먹는 목록의 값도 함께 바뀝니다.';
+  }
+  ahForm.style.display='block';
+  ahForm.scrollIntoView({behavior:'smooth',block:'center'});
+  setTimeout(()=>document.getElementById('ahN').focus(),300);
+}
+function ahRead(){
+  const o={n:document.getElementById('ahN').value.trim()};
+  AH.forEach(k=>o[k]=num(document.getElementById('ah'+k).value));
+  return o;
+}
+
 document.getElementById('adhocBtn').addEventListener('click',()=>{
-  const open=ahForm.style.display!=='none';
-  ahForm.style.display=open?'none':'block';
-  if(!open)setTimeout(()=>document.getElementById('ahN').focus(),50);
+  if(ahForm.style.display!=='none'&&ahEdit===null)ahClose();
+  else openAhForm(null);
 });
-document.getElementById('ahCancel').addEventListener('click',()=>{ahForm.style.display='none';ahClear()});
+document.getElementById('ahCancel').addEventListener('click',ahClose);
 document.getElementById('ahAdd').addEventListener('click',()=>{
-  const n=document.getElementById('ahN').value.trim();
-  if(!n){alert('음식 이름을 입력해 주세요.');return}
-  const ad={
-    n,
-    kcal:num(document.getElementById('ahkcal').value),
-    p:num(document.getElementById('ahp').value),
-    c:num(document.getElementById('ahc').value),
-    sugar:num(document.getElementById('ahsugar').value),
-    f:num(document.getElementById('ahf').value),
-    sat:num(document.getElementById('ahsat').value),
-    na:num(document.getElementById('ahna').value)
-  };
-  (meals[cur]||(meals[cur]=[])).push({ad,q:1});
+  const o=ahRead();
+  if(!o.n){alert('음식 이름을 입력해 주세요.');return}
+
+  if(ahEdit===null){
+    (meals[cur]||(meals[cur]=[])).push({ad:o,q:1});
+  }else{
+    const m=meals[cur][ahEdit];
+    if(m.ad){
+      m.ad=o;                       // 그날만 먹은 음식
+    }else{
+      const f=foods.find(x=>x.id===m.id);   // 등록된 음식이면 원본을 고친다
+      if(f){Object.assign(f,o);ls.set(K.fd,foods);renderChips();renderFEdit()}
+    }
+  }
   ls.set(K.ml,meals);
-  ahClear();ahForm.style.display='none';
-  renderMeals();renderNutrients();
+  ahClose();renderMeals();renderNutrients();
 });
 document.getElementById('picker').addEventListener('change',e=>{
   if(e.target.files&&e.target.files[0]&&pickTarget)addShot(pickTarget,e.target.files[0]);
