@@ -72,12 +72,16 @@ input[type=date]{
 }
 input[type=date]::-webkit-calendar-picker-indicator{opacity:.5}
 .daytag{
-  flex:0 0 auto;font-size:12px;font-weight:700;
-  padding:8px 10px;border-radius:8px;white-space:nowrap;
+  flex:0 0 auto;font-size:12px;font-weight:700;font-family:var(--sans);
+  padding:8px 10px;border-radius:8px;white-space:nowrap;cursor:pointer;
   border:1px solid var(--line);color:var(--dim);background:var(--panel);
-  box-shadow:var(--shadow);
+  box-shadow:var(--shadow);position:relative;
 }
 .daytag.on{color:var(--amber-ink);border-color:#F0D89A;background:var(--amber-soft)}
+.daytag.edited::after{
+  content:'';position:absolute;top:3px;right:3px;
+  width:6px;height:6px;border-radius:50%;background:var(--amber);
+}
 nav{display:flex;gap:2px;padding-bottom:9px}
 nav button{
   flex:1;padding:9px 0;font-family:var(--sans);font-size:13.5px;font-weight:700;
@@ -540,7 +544,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       <button class="navBtn" id="prevD" aria-label="이전 날짜">‹</button>
       <input type="date" id="date">
       <button class="navBtn" id="nextD" aria-label="다음 날짜">›</button>
-      <span class="daytag" id="daytag">—</span>
+      <button class="daytag" id="daytag" title="운동일 / 휴식일 전환">—</button>
     </div>
     <nav>
       <button data-v="train" class="on">운동</button>
@@ -683,7 +687,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
     <div class="panel">
       <div class="phead"><h2>운동일 지정</h2></div>
       <div class="field"><label>운동하는 요일</label><span id="dayPick" style="display:flex;gap:4px"></span></div>
-      <div class="hint">선택한 요일에는 운동 루틴이, 나머지 요일에는 휴식일 루틴이 열립니다.</div>
+      <div class="hint">선택한 요일에는 운동 루틴이, 나머지 요일에는 휴식일 루틴이 열립니다.<br>일정이 밀린 날은 상단의 <b>요일 배지</b>를 눌러 그날만 바꿀 수 있습니다. 바꾼 날에는 배지에 점이 표시됩니다.</div>
     </div>
 
     <div class="panel">
@@ -853,6 +857,8 @@ let basis=ls.get('tl_basis','std');
 let nutMode='day';
 let slot=ls.get('tl_slot','b');   // 새로 추가할 끼니
 let weights=ls.get('tl_weights',{});   // {날짜: kg}
+/* 요일 기본값을 그날만 뒤집는 예외 {날짜: true|false} */
+let dayType=ls.get('tl_daytype',{});
 let cur=todayStr();
 let draft={};
 let shots={};      // 현재 날짜의 사진 {exId:[dataURL,...]}
@@ -942,7 +948,12 @@ function unlockAudio(){
 
 function todayStr(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function dow(s){return new Date(s+'T00:00:00').getDay()}
-function isWorkout(s){return wdays.includes(dow(s))}
+/* 그날 지정이 있으면 그것을 따르고, 없으면 요일 기본값을 쓴다 */
+function isWorkout(s){
+  if(Object.prototype.hasOwnProperty.call(dayType,s))return dayType[s];
+  return wdays.includes(dow(s));
+}
+function isOverridden(s){return Object.prototype.hasOwnProperty.call(dayType,s)}
 function shift(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
 function weekStart(s){const d=dow(s);return shift(s,d===0?-6:1-d)}
 function num(v){const n=parseFloat(v);return isNaN(n)?0:n}
@@ -1967,7 +1978,26 @@ async function refreshTrain(){
   loadDraft();renderRoutine();renderVolume();renderTime();renderSession();updateStat();
   const t=document.getElementById('daytag');
   t.textContent=DAYS[dow(cur)]+'·'+(isWorkout(cur)?'운동':'휴식');
-  t.className='daytag'+(isWorkout(cur)?' on':'');
+  t.className='daytag'+(isWorkout(cur)?' on':'')+(isOverridden(cur)?' edited':'');
+}
+
+/* 그날만 운동일 ↔ 휴식일을 바꾼다. 요일 설정은 건드리지 않는다. */
+async function toggleDayType(){
+  const now=isWorkout(cur);
+  const lg=logs[cur];
+  if(lg&&lg.ex.length){
+    if(!confirm(`${now?'휴식일':'운동일'}로 바꾸면 오늘 저장된 기록 ${lg.ex.length}개가 지워집니다.\n계속할까요?`))return;
+    delete logs[cur];ls.set(K.lg,logs);
+    for(const id of Object.keys(shots))await IDB.del(cur+'::'+id);
+  }
+  if(running){running=null;if(tick){clearInterval(tick);tick=null}}
+  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+
+  const base=wdays.includes(dow(cur));
+  if(!now===base)delete dayType[cur];   // 기본값으로 돌아오면 예외를 지운다
+  else dayType[cur]=!now;
+  ls.set('tl_daytype',dayType);
+  await refreshTrain();
 }
 async function goDate(s){
   if(running)stopTimer();
@@ -2001,6 +2031,7 @@ document.getElementById('nextD').addEventListener('click',()=>goDate(shift(cur,1
 document.getElementById('save').addEventListener('click',()=>saveLog(false));
 document.getElementById('clearDay').addEventListener('click',clearDay);
 document.getElementById('sessBtn').addEventListener('click',toggleSession);
+document.getElementById('daytag').addEventListener('click',toggleDayType);
 document.getElementById('wIn').addEventListener('input',e=>{
   const v=num(e.target.value);
   if(v>0)weights[cur]=Math.round(v*10)/10;else delete weights[cur];
@@ -2099,7 +2130,7 @@ document.getElementById('addFood').addEventListener('click',()=>{
 });
 document.getElementById('exp').addEventListener('click',async()=>{
   const photos=await IDB.all();
-  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,photos});
+  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,photos});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
   a.download='nagis-training-log_'+todayStr()+'.json';a.click();
@@ -2119,6 +2150,7 @@ document.getElementById('imp').addEventListener('click',()=>{
         if(d.wdays){wdays=d.wdays;ls.set(K.wd,wdays)}
         if(d.weights){weights=d.weights;ls.set('tl_weights',weights)}
         if(d.sessions){sessions=d.sessions;ls.set('tl_sessions',sessions)}
+        if(d.dayType){dayType=d.dayType;ls.set('tl_daytype',dayType)}
         if(d.photos){for(const k of Object.keys(d.photos))await IDB.set(k,d.photos[k])}
         ls.set('tl_migrated',true);boot();alert('불러왔습니다.');
       }catch(e){alert('파일을 읽을 수 없습니다.')}
@@ -2135,8 +2167,8 @@ document.getElementById('wipeLogs').addEventListener('click',async()=>{
 document.getElementById('wipe').addEventListener('click',async()=>{
   if(!confirm('모든 기록이 지워집니다. 계속할까요?'))return;
   Object.values(K).forEach(k=>localStorage.removeItem(k));
-  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');await IDB.clear();
-  weights={};sessions={};
+  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');await IDB.clear();
+  weights={};sessions={};dayType={};
   routines=JSON.parse(JSON.stringify(DEF_ROUTINE));logs={};
   foods=JSON.parse(JSON.stringify(DEF_FOODS));meals={};
   targets=JSON.parse(JSON.stringify(DEF_TARGETS));wdays=[2,4,0];basis='std';
