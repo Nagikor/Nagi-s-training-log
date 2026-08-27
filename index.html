@@ -199,6 +199,26 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   cursor:pointer;text-decoration:underline;padding:2px;
 }
 .setBox.off input{background:var(--panel2);color:var(--dimmer);text-decoration:line-through}
+
+/* ── 보조 입력 (무게 / 최장 홀드) ── */
+.setBox.dual{display:flex;flex-direction:column;gap:3px}
+.setBox.dual .subIn{
+  width:56px;padding:5px 3px;text-align:center;
+  font-family:var(--mono);font-size:11.5px;font-weight:600;
+  background:var(--panel2);color:var(--dim);
+  border:1px solid var(--line);border-radius:5px;
+}
+.setBox.dual .subIn:focus{outline:0;border-color:var(--amber);background:#FFFBF0;color:var(--ink)}
+.setBox.dual .subIn::placeholder{color:#C4CCD6;font-weight:400}
+.subLabel{
+  font-family:var(--mono);font-size:9.5px;color:var(--dimmer);
+  letter-spacing:.06em;margin-left:2px;align-self:center;
+}
+.bestLine{
+  font-family:var(--mono);font-size:11px;color:var(--dim);
+  margin-top:7px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+}
+.bestLine b{color:var(--ink);font-weight:700}
 .setDrop{
   position:absolute;top:-7px;right:-4px;width:17px;height:17px;border-radius:50%;
   background:var(--panel);border:1px solid var(--line);color:var(--dimmer);
@@ -639,7 +659,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       </div>
       <div id="rEdit"></div>
       <div class="btnRow"><button class="btn ghost" id="addEx">＋ 운동 추가</button></div>
-      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
+      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최장홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
     </div>
 
     <div class="panel">
@@ -736,12 +756,12 @@ const DEF_ROUTINE={
     {id:'w01',s:'워밍업',n:'스캐퓰러 푸쉬업',t:'reps',sets:2,rest:60},
     {id:'w02',s:'워밍업',n:'핸드스탠드 킥업',t:'reps',sets:2,rest:60},
     {id:'w03',s:'파트 1 · 플란체',n:'플란체 린 (패럴렛)',t:'hold',sets:3,rest:90},
-    {id:'w04',s:'파트 1 · 플란체',n:'턱 플란체 홀드',t:'reps',sets:3,rest:90},
-    {id:'w05',s:'파트 1 · 플란체',n:'스트래들 월 슬라이드',t:'reps',sets:3,rest:120},
+    {id:'w04',s:'파트 1 · 플란체',n:'턱 플란체 홀드',t:'reps',sets:3,rest:90,sub:'best'},
+    {id:'w05',s:'파트 1 · 플란체',n:'스트래들 월 슬라이드',t:'reps',sets:3,rest:120,sub:'best'},
     {id:'w06',s:'파트 1 · 플란체',n:'어시스티드 턱 플란체',t:'reps',sets:2,rest:90},
     {id:'w07',s:'파트 2 · 프로트랙션',n:'슈도 푸쉬업',t:'reps',sets:3,rest:90},
-    {id:'w08',s:'파트 2 · 프로트랙션',n:'할로우 스트레이트암 레이즈',t:'reps',sets:3,rest:60},
-    {id:'w09',s:'파트 2 · 프로트랙션',n:'덤벨 숄더프레스',t:'reps',sets:3,rest:90},
+    {id:'w08',s:'파트 2 · 프로트랙션',n:'할로우 스트레이트암 레이즈',t:'reps',sets:3,rest:60,sub:'kg'},
+    {id:'w09',s:'파트 2 · 프로트랙션',n:'덤벨 숄더프레스',t:'reps',sets:3,rest:90,sub:'kg'},
     {id:'w10',s:'파트 3 · 당기기·밀기',n:'풀업',t:'reps',sets:3,rest:90},
     {id:'w11',s:'파트 3 · 당기기·밀기',n:'딥스',t:'reps',sets:3,rest:60},
     {id:'w12',s:'파트 4 · 코어',n:'행잉 니 레이즈',t:'reps',sets:3,rest:45},
@@ -999,11 +1019,13 @@ function loadDraft(){
       carried,
       n:hit&&hit.n?hit.n:ex.n,
       secs:hit&&hit.secs?hit.secs.slice():new Array(ex.sets).fill(0),
+      sub:hit&&hit.sub?hit.sub.slice():new Array(ex.sets).fill(''),
       skip:!!(hit&&hit.skip),
       off:hit&&hit.off?hit.off.slice():[]
     };
     while(draft[ex.id].v.length<ex.sets)draft[ex.id].v.push('');
     while(draft[ex.id].secs.length<ex.sets)draft[ex.id].secs.push(0);
+    while(draft[ex.id].sub.length<ex.sets)draft[ex.id].sub.push('');
   });
 }
 function prevTotal(id){
@@ -1014,6 +1036,37 @@ function prevTotal(id){
   }
   return null;
 }
+/* 보조값(무게·최장홀드)의 지난 기록 */
+function prevSub(id){
+  const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
+  for(const d of dates){
+    const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
+    if(e&&e.sub){
+      const v=e.sub.map(num).filter(x=>x>0);
+      if(v.length)return{max:Math.max(...v),d};
+    }
+  }
+  return null;
+}
+/* 무게는 최고 중량, 홀드는 최장 시간을 뽑아 보여준다 */
+function subSummary(ex,d){
+  const sub=ex.sub||'';
+  if(!sub||d.skip)return'';
+  const vals=(d.sub||[]).map(num).filter(x=>x>0);
+  if(!vals.length)return'';
+  const best=Math.max(...vals);
+  const u=sub==='kg'?'kg':'초';
+  const lab=sub==='kg'?'최고 중량':'최장 홀드';
+  const pv=prevSub(ex.id);
+  let chip='';
+  if(pv){
+    const df=best-pv.max;
+    const cls=df>0?'up':df<0?'down':'flat';
+    chip=`<span class="chip ${cls}">${df>0?'+':''}${fmt(df)}${u} · 전회 ${fmt(pv.max)}${u}</span>`;
+  }
+  return `<div class="bestLine">${lab} <b>${fmt(best)}${u}</b>${chip}</div>`;
+}
+
 function renderRoutine(){
   const list=isWorkout(cur)?routines.workout:routines.rest;
   const host=document.getElementById('routine');
@@ -1052,12 +1105,17 @@ function renderRoutine(){
       }else if(pv)chip=`<span class="chip flat">전회 ${fmt(pv.t)}${unit}</span>`;
 
       let boxes='';
+      const sub=ex.sub||'';                       // '' | 'kg' | 'best'
+      const subPh=sub==='kg'?'kg':'초';
       for(let i=0;i<ex.sets;i++){
         const dropped=(d.off||[]).includes(i);
-        boxes+=`<div class="setBox${dropped?' off':''}"><span class="setNo">${i+1}</span>
+        boxes+=`<div class="setBox${dropped?' off':''}${sub?' dual':''}"><span class="setNo">${i+1}</span>
         <button class="setDrop${dropped?' on':''}" data-drop="${ex.id}" data-i="${i}" title="${dropped?'되살리기':'이 세트 건너뛰기'}">${dropped?'↺':'✕'}</button>
-        <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}></div>`;
+        <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}>
+        ${sub?`<input class="subIn" type="number" inputmode="decimal" step="${sub==='kg'?'0.5':'1'}" placeholder="${subPh}" value="${d.sub&&d.sub[i]!=null?d.sub[i]:''}" data-sub="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}>`:''}
+        </div>`;
       }
+      const subUnit=sub?`<span class="subLabel">${sub==='kg'?'▲회 ▼kg':'▲회 ▼최장'}</span>`:'';
       const ph=shots[ex.id]||[];
       const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
         `<div class="shot"><img src="${src}" data-zoom="${src}" alt="자세 사진"><button data-delshot="${ex.id}" data-i="${i}">✕</button></div>`).join('')}</div>`:'';
@@ -1076,8 +1134,9 @@ function renderRoutine(){
 
       if(d.skip)return `<div class="mv${cmp?'':''}">${head}<div class="skipNote">오늘은 건너뜀 <button data-skip="${ex.id}">되돌리기</button></div></div>`;
       return `<div class="mv">${head}
-        <div class="sets">${boxes}<span class="unit">${unit}</span></div>
+        <div class="sets">${boxes}<span class="unit">${unit}</span>${subUnit}</div>
         <div class="mvFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
+        ${subSummary(ex,d)}
         ${shotHtml}</div>`;
     }).join('');
 
@@ -1135,6 +1194,20 @@ function renderRoutine(){
     }
     updateStat();
   }));
+  host.querySelectorAll('input[data-sub]').forEach(inp=>inp.addEventListener('input',e=>{
+    const id=e.target.dataset.sub;
+    draft[id].sub[+e.target.dataset.i]=e.target.value;
+    const ex=list.find(x=>x.id===id),card=e.target.closest('.mv');
+    const line=card&&card.querySelector('.bestLine');
+    const html=subSummary(ex,draft[id]);
+    if(line){
+      if(html){const tmp=document.createElement('div');tmp.innerHTML=html;line.replaceWith(tmp.firstElementChild)}
+      else line.remove();
+    }else if(html){
+      const foot=card&&card.querySelector('.mvFoot');
+      if(foot)foot.insertAdjacentHTML('afterend',html);
+    }
+  }));
   host.querySelectorAll('input[data-rename]').forEach(inp=>inp.addEventListener('input',e=>{
     const id=e.target.dataset.rename;
     draft[id].n=e.target.value;
@@ -1175,7 +1248,7 @@ function renderRoutine(){
       const hasData=d.v.some(v=>String(v).trim()!=='')||d.secs.some(s=>s>0);
       if(hasData&&!confirm('입력된 기록과 시간이 함께 지워집니다. 건너뛸까요?'))return;
       if(running&&running.id===id){running=null;if(tick){clearInterval(tick);tick=null}}
-      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.off=[];
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.sub=d.sub.map(()=>'');d.off=[];
     }else d.skip=false;
     saveLog(true);renderRoutine();renderTime();
   }));
@@ -1187,7 +1260,7 @@ function renderRoutine(){
     if(at>=0)d.off.splice(at,1);
     else{
       if(running&&running.id===id&&running.set===i){running=null;if(tick){clearInterval(tick);tick=null}}
-      d.off.push(i);d.v[i]='';d.secs[i]=0;
+      d.off.push(i);d.v[i]='';d.secs[i]=0;d.sub[i]='';
     }
     saveLog(true);renderRoutine();renderTime();
   }));
@@ -1443,12 +1516,14 @@ function saveLog(silent){
     const secs=(d.secs||[]).map(s=>Math.round(s||0));
     const hasTime=secs.some(s=>s>0);
     const off=(d.off||[]).slice();
+    const subv=(d.sub||[]).map(x=>String(x??''));
+    const hasSub=subv.some(x=>x.trim()!=='');
     /* 이어받기만 하고 손대지 않은 메모는 그 자체로 기록이 되지 않는다 */
     const ownNote=d.carried?'':d.note;
     if(d.skip){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],skip:true,off:[]});
-    }else if(d.v.some(v=>String(v).trim()!=='')||ownNote.trim()!==''||hasTime||off.length){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,off});
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],sub:[],skip:true,off:[]});
+    }else if(d.v.some(v=>String(v).trim()!=='')||ownNote.trim()!==''||hasTime||off.length||hasSub){
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,sub:subv,off});
     }
   });
   if(ex.length)logs[cur]={ex};else delete logs[cur];
@@ -1693,6 +1768,10 @@ function renderREdit(){
       <select data-r="${i}" data-k="t" style="font-family:var(--sans);font-size:12px">
         <option value="reps"${ex.t==='reps'?' selected':''}>횟수</option>
         <option value="hold"${ex.t==='hold'?' selected':''}>홀드</option></select>
+      <select data-r="${i}" data-k="sub" style="font-family:var(--sans);font-size:12px">
+        <option value=""${!ex.sub?' selected':''}>추가없음</option>
+        <option value="kg"${ex.sub==='kg'?' selected':''}>무게</option>
+        <option value="best"${ex.sub==='best'?' selected':''}>최장홀드</option></select>
       <input class="n" type="number" value="${ex.sets}" data-r="${i}" data-k="sets">
       <input class="n" type="number" value="${ex.rest}" data-r="${i}" data-k="rest">
       <button class="del" data-rx="${i}">✕</button>
