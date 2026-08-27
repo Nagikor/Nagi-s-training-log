@@ -200,20 +200,22 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 }
 .setBox.off input{background:var(--panel2);color:var(--dimmer);text-decoration:line-through}
 
-/* ── 보조 입력 (무게 / 최장 홀드) ── */
-.setBox.dual{display:flex;flex-direction:column;gap:3px}
-.setBox.dual .subIn{
-  width:56px;padding:5px 3px;text-align:center;
-  font-family:var(--mono);font-size:11.5px;font-weight:600;
-  background:var(--panel2);color:var(--dim);
-  border:1px solid var(--line);border-radius:5px;
+/* ── 보조 입력 (무게 / 최대 홀드) ── */
+.setRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.setRow+.setRow{margin-top:6px}
+.rowUnit{
+  font-family:var(--mono);font-size:11px;color:var(--dimmer);
+  white-space:nowrap;flex:0 0 auto;
 }
-.setBox.dual .subIn:focus{outline:0;border-color:var(--amber);background:#FFFBF0;color:var(--ink)}
-.setBox.dual .subIn::placeholder{color:#C4CCD6;font-weight:400}
-.subLabel{
-  font-family:var(--mono);font-size:9.5px;color:var(--dimmer);
-  letter-spacing:.06em;margin-left:2px;align-self:center;
+.subIn{
+  width:56px;padding:7px 3px;text-align:center;
+  font-family:var(--mono);font-size:13px;font-weight:600;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:7px;
 }
+.subIn:focus{outline:0;border-color:var(--amber);background:#FFFBF0}
+.subIn::placeholder{color:#C4CCD6;font-weight:400}
+.subIn:disabled{background:var(--panel2);color:var(--dimmer)}
 .bestLine{
   font-family:var(--mono);font-size:11px;color:var(--dim);
   margin-top:7px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
@@ -692,7 +694,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       </div>
       <div id="rEdit"></div>
       <div class="btnRow"><button class="btn ghost" id="addEx">＋ 운동 추가</button></div>
-      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최장홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
+      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최대홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
     </div>
 
     <div class="panel">
@@ -1089,7 +1091,7 @@ function subSummary(ex,d){
   if(!vals.length)return'';
   const best=Math.max(...vals);
   const u=sub==='kg'?'kg':'초';
-  const lab=sub==='kg'?'최고 중량':'최장 홀드';
+  const lab=sub==='kg'?'최고 무게':'최대 홀드';
   const pv=prevSub(ex.id);
   let chip='';
   if(pv){
@@ -1139,16 +1141,17 @@ function renderRoutine(){
 
       let boxes='';
       const sub=ex.sub||'';                       // '' | 'kg' | 'best'
-      const subPh=sub==='kg'?'kg':'초';
+      let subBoxes='';
       for(let i=0;i<ex.sets;i++){
         const dropped=(d.off||[]).includes(i);
-        boxes+=`<div class="setBox${dropped?' off':''}${sub?' dual':''}"><span class="setNo">${i+1}</span>
+        boxes+=`<div class="setBox${dropped?' off':''}"><span class="setNo">${i+1}</span>
         <button class="setDrop${dropped?' on':''}" data-drop="${ex.id}" data-i="${i}" title="${dropped?'되살리기':'이 세트 건너뛰기'}">${dropped?'↺':'✕'}</button>
-        <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}>
-        ${sub?`<input class="subIn" type="number" inputmode="decimal" step="${sub==='kg'?'0.5':'1'}" placeholder="${subPh}" value="${d.sub&&d.sub[i]!=null?d.sub[i]:''}" data-sub="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}>`:''}
-        </div>`;
+        <input type="number" inputmode="numeric" placeholder="${dropped?'생략':'—'}" value="${d.v[i]??''}" data-ex="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}></div>`;
+        if(sub)subBoxes+=`<input class="subIn" type="number" inputmode="decimal" step="${sub==='kg'?'0.5':'1'}" placeholder="—" value="${d.sub&&d.sub[i]!=null?d.sub[i]:''}" data-sub="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}>`;
       }
-      const subUnit=sub?`<span class="subLabel">${sub==='kg'?'▲회 ▼kg':'▲회 ▼최장'}</span>`:'';
+      const subRow=sub
+        ? `<div class="setRow">${subBoxes}<span class="rowUnit">${sub==='kg'?'무게 (kg)':'최대 홀드 (초)'}</span></div>`
+        : '';
       const ph=shots[ex.id]||[];
       const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
         `<div class="shot"><img src="${src}" data-zoom="${src}" alt="자세 사진"><button data-delshot="${ex.id}" data-i="${i}">✕</button></div>`).join('')}</div>`:'';
@@ -1167,7 +1170,8 @@ function renderRoutine(){
 
       if(d.skip)return `<div class="mv${cmp?'':''}">${head}<div class="skipNote">오늘은 건너뜀 <button data-skip="${ex.id}">되돌리기</button></div></div>`;
       return `<div class="mv">${head}
-        <div class="sets">${boxes}<span class="unit">${unit}</span>${subUnit}</div>
+        <div class="setRow">${boxes}<span class="rowUnit">${unit}</span></div>
+        ${subRow}
         <div class="mvFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
         ${subSummary(ex,d)}
         ${shotHtml}</div>`;
@@ -1812,7 +1816,7 @@ function renderREdit(){
           <select data-r="${i}" data-k="sub">
             <option value=""${!ex.sub?' selected':''}>없음</option>
             <option value="kg"${ex.sub==='kg'?' selected':''}>무게</option>
-            <option value="best"${ex.sub==='best'?' selected':''}>최장홀드</option></select>
+            <option value="best"${ex.sub==='best'?' selected':''}>최대홀드</option></select>
           <label>추가 기록</label>
         </div>
         <div class="rCell">
