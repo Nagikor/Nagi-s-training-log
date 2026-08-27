@@ -268,6 +268,19 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   background:var(--panel);color:var(--dim);border:1px solid var(--line);
 }
 .restBtn:active{background:var(--panel2)}
+.restBtn.end{background:#2F6FB8;color:#fff;border-color:#2F6FB8}
+.rest.over .restBtn.end{background:var(--up);border-color:var(--up)}
+
+/* ── 지난 메모 이어받기 ── */
+.noteTag{
+  display:flex;align-items:center;gap:6px;margin-top:9px;
+  font-family:var(--mono);font-size:10.5px;color:var(--amber-ink);
+}
+.noteTag button{
+  background:transparent;border:0;color:var(--dim);font-size:10.5px;
+  cursor:pointer;text-decoration:underline;padding:2px;margin-left:auto;
+}
+.note.carried{border-style:solid;border-color:#F0D89A;background:#FFFDF7}
 
 /* ── 세션 ── */
 .sess{display:flex;align-items:center;gap:12px;padding:12px 14px}
@@ -958,14 +971,32 @@ async function delShot(exId,i){
 }
 
 /* ══════════ 운동 ══════════ */
+/* 같은 운동의 가장 최근 메모를 찾는다 */
+function prevNote(id){
+  const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
+  for(const d of dates){
+    const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
+    if(e&&e.note&&e.note.trim())return{note:e.note,d};
+  }
+  return null;
+}
+
 function loadDraft(){
   const saved=logs[cur];draft={};
   const list=isWorkout(cur)?routines.workout:routines.rest;
   list.forEach(ex=>{
     const hit=saved&&saved.ex&&saved.ex.find(e=>e.id===ex.id);
+    /* 오늘 메모가 아직 없으면 지난 메모를 이어받는다 (자세 큐가 유지되도록) */
+    let note=hit?(hit.note||''):'';
+    let carried=null;
+    if(!note&&!hit){
+      const pn=prevNote(ex.id);
+      if(pn){note=pn.note;carried=pn.d}
+    }
     draft[ex.id]={
       v:hit?hit.v.slice():new Array(ex.sets).fill(''),
-      note:hit?(hit.note||''):'',
+      note,
+      carried,
       n:hit&&hit.n?hit.n:ex.n,
       secs:hit&&hit.secs?hit.secs.slice():new Array(ex.sets).fill(0),
       skip:!!(hit&&hit.skip),
@@ -1077,7 +1108,9 @@ function renderRoutine(){
            <div class="exMeta">휴식 ${lead.rest}초</div></div>`
       : '';
     const cmpNote=gSkip?''
-      :`<textarea class="note" rows="2" placeholder="메모" data-note="${lead.id}">${esc(dl.note)}</textarea>`;
+      :`${dl.carried?`<div class="noteTag">지난 메모 이어옴 · ${dl.carried.slice(5).replace('-','/')}
+          <button data-noteclear="${lead.id}">지우기</button></div>`:''}
+        <textarea class="note${dl.carried?' carried':''}" rows="2" placeholder="메모" data-note="${lead.id}">${esc(dl.note)}</textarea>`;
 
     html+=`<div class="ex${gSkip?' skip':''}">${cmpHead}${movs}${timers}${cmpNote}</div>`;
   });
@@ -1109,8 +1142,23 @@ function renderRoutine(){
   }));
   host.querySelectorAll('textarea[data-note]').forEach(t=>{
     const fit=()=>{t.style.height='auto';t.style.height=t.scrollHeight+'px'};fit();
-    t.addEventListener('input',e=>{draft[e.target.dataset.note].note=e.target.value;fit()});
+    t.addEventListener('input',e=>{
+      const id=e.target.dataset.note;
+      draft[id].note=e.target.value;
+      if(draft[id].carried){          // 손대는 순간 오늘 메모가 된다
+        draft[id].carried=null;
+        e.target.classList.remove('carried');
+        const tag=e.target.previousElementSibling;
+        if(tag&&tag.classList.contains('noteTag'))tag.remove();
+      }
+      fit();
+    });
   });
+  host.querySelectorAll('[data-noteclear]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.noteclear;
+    draft[id].note='';draft[id].carried=null;
+    renderRoutine();
+  }));
   host.querySelectorAll('[data-timer]').forEach(b=>b.addEventListener('click',()=>
     toggleTimer(b.dataset.timer,+b.dataset.set)));
   host.querySelectorAll('[data-treset]').forEach(b=>b.addEventListener('click',()=>{
@@ -1243,7 +1291,7 @@ function restBoxHtml(){
       <div class="restBar"><i style="width:${over?100:Math.max(0,(1-left/rest.len)*100)}%"></i></div>
     </div>
     <button class="restBtn" data-restadd="30">+30초</button>
-    <button class="restBtn" data-restend>${over?'닫기':'건너뛰기'}</button>
+    <button class="restBtn end" data-restend>종료</button>
   </div>`;
 }
 
@@ -1395,9 +1443,11 @@ function saveLog(silent){
     const secs=(d.secs||[]).map(s=>Math.round(s||0));
     const hasTime=secs.some(s=>s>0);
     const off=(d.off||[]).slice();
+    /* 이어받기만 하고 손대지 않은 메모는 그 자체로 기록이 되지 않는다 */
+    const ownNote=d.carried?'':d.note;
     if(d.skip){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:d.note,secs:[],skip:true,off:[]});
-    }else if(d.v.some(v=>String(v).trim()!=='')||d.note.trim()!==''||hasTime||off.length){
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],skip:true,off:[]});
+    }else if(d.v.some(v=>String(v).trim()!=='')||ownNote.trim()!==''||hasTime||off.length){
       ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,off});
     }
   });
