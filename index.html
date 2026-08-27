@@ -247,6 +247,28 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 .ord button:active{background:var(--amber-soft);color:var(--amber-ink);border-color:#F0D89A}
 .ord button:disabled{opacity:.3;cursor:default}
 
+/* ── 휴식 타이머 ── */
+.rest{
+  display:flex;align-items:center;gap:9px;margin-top:9px;
+  padding:9px 11px;border-radius:9px;
+  background:#EAF2FB;border:1px solid #C5DBF2;
+}
+.rest.over{background:var(--up-soft);border-color:#B9E3D3}
+.restLab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#2F6FB8}
+.rest.over .restLab{color:var(--up)}
+.restVal{font-family:var(--mono);font-size:20px;font-weight:700;color:#2F6FB8;line-height:1.1}
+.rest.over .restVal{color:var(--up)}
+.restMid{flex:1;min-width:0}
+.restBar{height:4px;background:#D6E6F7;border-radius:2px;margin-top:5px;overflow:hidden}
+.restBar i{display:block;height:100%;background:#2F6FB8;border-radius:2px;transition:width 1s linear}
+.rest.over .restBar i{background:var(--up)}
+.restBtn{
+  flex:0 0 auto;padding:6px 11px;border-radius:7px;cursor:pointer;
+  font-family:var(--sans);font-size:11.5px;font-weight:700;
+  background:var(--panel);color:var(--dim);border:1px solid var(--line);
+}
+.restBtn:active{background:var(--panel2)}
+
 /* ── 세션 ── */
 .sess{display:flex;align-items:center;gap:12px;padding:12px 14px}
 .sess .btn{width:auto;flex:0 0 auto;padding:11px 20px;margin:0}
@@ -767,8 +789,45 @@ let cur=todayStr();
 let draft={};
 let shots={};      // 현재 날짜의 사진 {exId:[dataURL,...]}
 let pickTarget=null;
-let running=null;  // {id, startedAt} — 한 번에 하나만 돈다
+let running=null;  // {id, set, startedAt} — 한 번에 하나만 돈다
 let tick=null;
+let rest=null;     // {id, set, endsAt, len} — 휴식 카운트다운
+let restTick=null;
+let audioCtx=null;
+
+/* 종소리 — 음원 파일 없이 브라우저가 직접 만든다 (오프라인에서도 동작) */
+function bell(at){
+  try{
+    if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    const t0=audioCtx.currentTime+at;
+    /* 기음에 배음을 겹쳐 종처럼 들리게 한다 */
+    [[880,1],[1320,.5],[2640,.22]].forEach(([hz,vol])=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine';o.frequency.value=hz;
+      g.gain.setValueAtTime(0,t0);
+      g.gain.linearRampToValueAtTime(.35*vol,t0+.008);
+      g.gain.exponentialRampToValueAtTime(.0001,t0+1.5);
+      o.connect(g);g.connect(audioCtx.destination);
+      o.start(t0);o.stop(t0+1.6);
+    });
+  }catch(e){}
+}
+function ringTwice(){
+  bell(0);bell(0.8);
+  if(navigator.vibrate)navigator.vibrate([200,120,200]);
+}
+/* 모바일 브라우저는 사용자가 화면을 누른 적이 있어야 소리를 낸다.
+   세트를 시작할 때 무음으로 한 번 열어두면 휴식 종료음이 확실히 울린다. */
+function unlockAudio(){
+  try{
+    if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    g.gain.value=0;o.connect(g);g.connect(audioCtx.destination);
+    o.start();o.stop(audioCtx.currentTime+.01);
+  }catch(e){}
+}
 
 /* 이름 대신 ID로 식별하도록 기존 데이터를 한 번 정리 */
 (function migrate(){
@@ -988,8 +1047,7 @@ function renderRoutine(){
       return `<div class="mv">${head}
         <div class="sets">${boxes}<span class="unit">${unit}</span></div>
         <div class="mvFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
-        ${shotHtml}
-        ${cmp?'':`<textarea class="note" rows="2" placeholder="메모" data-note="${ex.id}">${esc(d.note)}</textarea>`}</div>`;
+        ${shotHtml}</div>`;
     }).join('');
 
     /* 세트 타이머는 묶음 단위로 하나. 시간은 대표 운동에 저장한다. */
@@ -1010,16 +1068,16 @@ function renderRoutine(){
           ? `${cmp?'묶음 ':''}운동 시간 <b>${clock(liveSec(lead.id))}</b>${allSetsTimed(lead.id)?' · 전 세트 완료':''}
              <button class="tReset" data-treset="${lead.id}">초기화</button>`
           : '세트 버튼을 눌러 시간을 재세요'}
-      </div>`;
+      </div>
+      ${rest&&rest.id===lead.id?restBoxHtml():''}`;
 
     const cmpHead=cmp
       ? `<div class="exTop" style="margin-bottom:4px">
            <div class="exName">컴파운드 세트<span class="cmpTag">${g.length}종 · ${nSet}세트</span></div>
            <div class="exMeta">휴식 ${lead.rest}초</div></div>`
       : '';
-    const cmpNote=cmp
-      ? `<textarea class="note" rows="2" placeholder="메모" data-note="${lead.id}">${esc(dl.note)}</textarea>`
-      : '';
+    const cmpNote=gSkip?''
+      :`<textarea class="note" rows="2" placeholder="메모" data-note="${lead.id}">${esc(dl.note)}</textarea>`;
 
     html+=`<div class="ex${gSkip?' skip':''}">${cmpHead}${movs}${timers}${cmpNote}</div>`;
   });
@@ -1085,6 +1143,13 @@ function renderRoutine(){
     }
     saveLog(true);renderRoutine();renderTime();
   }));
+  host.querySelectorAll('[data-restend]').forEach(b=>b.addEventListener('click',stopRest));
+  host.querySelectorAll('[data-restadd]').forEach(b=>b.addEventListener('click',()=>{
+    if(!rest)return;
+    rest.endsAt+=(+b.dataset.restadd)*1000;
+    rest.len+=(+b.dataset.restadd);
+    rest.rung=false;renderRestBox();
+  }));
   host.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{
     pickTarget=b.dataset.cam;
     const p=document.getElementById('picker');p.value='';p.click();
@@ -1113,6 +1178,7 @@ function toggleSession(){
     sessions[cur]={start:Date.now(),end:null};
   }else if(!s.end){
     if(running)stopTimer();          // 돌던 세트를 확정하고 종료
+    if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
     s.end=Date.now();
   }else{
     if(!confirm('세션을 다시 시작하면 기존 전체 시간이 지워집니다.'))return;
@@ -1136,18 +1202,17 @@ function renderSession(){
   btn.textContent=running_?'운동 종료':'다시 시작';
   btn.className='btn'+(running_?' stop':' ghost');
 
-  const t=new Date(s.start);
-  const hh=String(t.getHours()).padStart(2,'0'),mm=String(t.getMinutes()).padStart(2,'0');
-  const total=sessElapsed(cur),work=daySec(cur),rest=Math.max(0,total-work);
+  const hhmm=ms=>{const t=new Date(ms);return String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0')};
+  const total=sessElapsed(cur),work=daySec(cur),restT=Math.max(0,total-work);
 
   info.innerHTML=running_
-    ? `${hh}:${mm} 시작 · 진행 중 <b style="color:var(--down)">${clock(total)}</b>`
-    : `${hh}:${mm} 시작 · 종료됨`;
+    ? `${hhmm(s.start)} 시작 · 진행 중 <b style="color:var(--down)">${clock(total)}</b>`
+    : `${hhmm(s.start)} 시작 · <b>${hhmm(s.end)}</b> 종료`;
 
   stats.style.display='';
   document.getElementById('sTotal').textContent=clock(total);
   document.getElementById('sWork').textContent=clock(work);
-  document.getElementById('sRest').textContent=clock(rest);
+  document.getElementById('sRest').textContent=clock(restT);
 
   /* 집중도 = 실운동 시간 / 세션 전체 시간 */
   if(total>0){
@@ -1165,6 +1230,55 @@ function renderSession(){
 }
 let sessTick=null;
 
+/* 휴식 박스 마크업 */
+function restBoxHtml(){
+  if(!rest)return'';
+  const left=(rest.endsAt-Date.now())/1000,over=left<=0;
+  return `<div class="rest${over?' over':''}" data-restbox>
+    <div>
+      <div class="restLab">${over?'휴식 종료':'휴식'}</div>
+      <div class="restVal">${over?'+'+clock(-left):clock(left)}</div>
+    </div>
+    <div class="restMid">
+      <div class="restBar"><i style="width:${over?100:Math.max(0,(1-left/rest.len)*100)}%"></i></div>
+    </div>
+    <button class="restBtn" data-restadd="30">+30초</button>
+    <button class="restBtn" data-restend>${over?'닫기':'건너뛰기'}</button>
+  </div>`;
+}
+
+/* ── 휴식 타이머 ── */
+function startRest(id,set,len){
+  if(!len||len<=0)return;
+  rest={id,set,endsAt:Date.now()+len*1000,len,rung:false};
+  if(restTick)clearInterval(restTick);
+  restTick=setInterval(()=>{
+    if(!rest){clearInterval(restTick);restTick=null;return}
+    const left=(rest.endsAt-Date.now())/1000;
+    if(left<=0&&!rest.rung){rest.rung=true;ringTwice()}
+    renderRestBox();
+  },250);
+  renderRoutine();
+}
+function stopRest(){
+  rest=null;
+  if(restTick){clearInterval(restTick);restTick=null}
+  renderRoutine();
+}
+/* 카운트다운 숫자만 갱신 — 전체를 다시 그리면 입력 중 커서가 튄다 */
+function renderRestBox(){
+  if(!rest)return;
+  const box=document.querySelector('[data-restbox]');
+  if(!box)return;
+  const left=(rest.endsAt-Date.now())/1000;
+  const over=left<=0;
+  box.className='rest'+(over?' over':'');
+  const v=box.querySelector('.restVal'),l=box.querySelector('.restLab'),b=box.querySelector('.restBar i');
+  if(v)v.textContent=over?'+'+clock(-left):clock(left);
+  if(l)l.textContent=over?'휴식 종료':'휴식';
+  if(b)b.style.width=over?'100%':Math.max(0,(1-left/rest.len)*100)+'%';
+}
+
 /* ── 세트 타이머 ── */
 function stopTimer(){
   if(!running)return;
@@ -1176,10 +1290,16 @@ function stopTimer(){
 }
 function toggleTimer(id,set){
   if(running&&running.id===id&&running.set===set){
-    stopTimer();renderRoutine();renderTime();return;
+    const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
+    stopTimer();
+    renderTime();
+    startRest(id,set,ex?ex.rest:0);   // 세트를 끝내면 휴식이 자동으로 시작된다
+    return;
   }
   if(running)stopTimer();          // 다른 세트가 돌고 있으면 먼저 확정
+  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
   running={id,set,startedAt:Date.now()};
+  unlockAudio();                    // 첫 탭에서 소리 권한만 조용히 열어둔다
   if(tick)clearInterval(tick);
   tick=setInterval(()=>{
     const el=document.querySelector(`[data-tval="${id}-${set}"]`);
@@ -1656,7 +1776,8 @@ async function refreshTrain(){
   t.className='daytag'+(isWorkout(cur)?' on':'');
 }
 async function goDate(s){
-  if(running)stopTimer();          // 날짜를 옮기기 전에 시간을 확정 저장
+  if(running)stopTimer();
+  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}          // 날짜를 옮기기 전에 시간을 확정 저장
   if(typeof ahClose==='function')ahClose();
   cur=s;document.getElementById('date').value=cur;
   await refreshTrain();renderMeals();renderNutrients();renderWeight();
