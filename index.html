@@ -219,6 +219,39 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   margin-top:7px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
 }
 .bestLine b{color:var(--ink);font-weight:700}
+
+/* ── 루틴 편집 카드 ── */
+.rCard{padding:11px 14px;border-bottom:1px solid var(--line-soft)}
+.rCard:last-child{border-bottom:0}
+.rTop{display:flex;align-items:center;gap:8px}
+.rTop input{
+  flex:1;min-width:0;padding:9px 10px;
+  font-family:var(--sans);font-size:13.5px;font-weight:700;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:7px;
+}
+.rTop input:focus{outline:0;border-color:var(--amber)}
+.rGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:9px}
+.rCell{display:flex;flex-direction:column}
+.rCell input,.rCell select{
+  width:100%;padding:8px 4px;text-align:center;
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:7px;
+}
+.rCell select{font-family:var(--sans);font-size:12px;text-align:left;padding-left:7px}
+.rCell input:focus,.rCell select:focus{outline:0;border-color:var(--amber)}
+.rCell label{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.05em;
+  color:var(--dimmer);text-align:center;margin-top:4px;
+}
+.rBottom{display:flex;align-items:center;gap:8px;margin-top:9px}
+.rBottom input{
+  flex:1;min-width:0;padding:7px 9px;
+  font-family:var(--sans);font-size:11.5px;color:var(--dim);
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+}
+.rBottom input:focus{outline:0;border-color:var(--amber);color:var(--ink)}
 .setDrop{
   position:absolute;top:-7px;right:-4px;width:17px;height:17px;border-radius:50%;
   background:var(--panel);border:1px solid var(--line);color:var(--dimmer);
@@ -1759,35 +1792,63 @@ function moveItem(arr,i,dir){
 function renderREdit(){
   const key=document.getElementById('rSel').value,list=routines[key];
   document.getElementById('rEdit').innerHTML=list.map((ex,i)=>`
-    <div class="rowEdit">
-      <div class="ord">
-        <button data-rup="${i}"${i===0?' disabled':''} title="위로">▲</button>
-        <button data-rdn="${i}"${i===list.length-1?' disabled':''} title="아래로">▼</button>
+    <div class="rCard">
+      <div class="rTop">
+        <div class="ord">
+          <button data-rup="${i}"${i===0?' disabled':''} title="위로">▲</button>
+          <button data-rdn="${i}"${i===list.length-1?' disabled':''} title="아래로">▼</button>
+        </div>
+        <input value="${esc(ex.n)}" data-r="${i}" data-k="n" placeholder="운동명">
+        <button class="del" data-rx="${i}">✕</button>
       </div>
-      <input class="nm" value="${esc(ex.n)}" data-r="${i}" data-k="n" placeholder="운동명">
-      <select data-r="${i}" data-k="t" style="font-family:var(--sans);font-size:12px">
-        <option value="reps"${ex.t==='reps'?' selected':''}>횟수</option>
-        <option value="hold"${ex.t==='hold'?' selected':''}>홀드</option></select>
-      <select data-r="${i}" data-k="sub" style="font-family:var(--sans);font-size:12px">
-        <option value=""${!ex.sub?' selected':''}>추가없음</option>
-        <option value="kg"${ex.sub==='kg'?' selected':''}>무게</option>
-        <option value="best"${ex.sub==='best'?' selected':''}>최장홀드</option></select>
-      <input class="n" type="number" value="${ex.sets}" data-r="${i}" data-k="sets">
-      <input class="n" type="number" value="${ex.rest}" data-r="${i}" data-k="rest">
-      <button class="del" data-rx="${i}">✕</button>
-    </div>
-    <div class="rowEdit" style="padding-top:0;border:0;gap:8px">
-      <input class="nm" value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름" style="font-size:11.5px;color:var(--dim)">
-      ${i>0?`<label class="linkLbl${ex.link?' on':''}">
-        <input type="checkbox" data-link="${i}"${ex.link?' checked':''}> 위와 묶기</label>`:''}
+      <div class="rGrid">
+        <div class="rCell">
+          <select data-r="${i}" data-k="t">
+            <option value="reps"${ex.t==='reps'?' selected':''}>횟수</option>
+            <option value="hold"${ex.t==='hold'?' selected':''}>홀드</option></select>
+          <label>기록 단위</label>
+        </div>
+        <div class="rCell">
+          <select data-r="${i}" data-k="sub">
+            <option value=""${!ex.sub?' selected':''}>없음</option>
+            <option value="kg"${ex.sub==='kg'?' selected':''}>무게</option>
+            <option value="best"${ex.sub==='best'?' selected':''}>최장홀드</option></select>
+          <label>추가 기록</label>
+        </div>
+        <div class="rCell">
+          <input type="number" inputmode="numeric" value="${ex.sets}" data-r="${i}" data-k="sets">
+          <label>세트</label>
+        </div>
+        <div class="rCell">
+          <input type="number" inputmode="numeric" value="${ex.rest}" data-r="${i}" data-k="rest">
+          <label>휴식(초)</label>
+        </div>
+      </div>
+      <div class="rBottom">
+        <input value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름">
+        ${i>0?`<label class="linkLbl${ex.link?' on':''}">
+          <input type="checkbox" data-link="${i}"${ex.link?' checked':''}> 위와 묶기</label>`:''}
+      </div>
     </div>
   `).join('')||'<div class="empty">운동을 추가해 주세요.</div>';
 
-  document.querySelectorAll('#rEdit [data-r]').forEach(el=>el.addEventListener('change',()=>{
-    const i=+el.dataset.r,k=el.dataset.k;
-    routines[key][i][k]=(k==='sets'||k==='rest')?Math.max(1,num(el.value)):el.value;
-    ls.set(K.rt,routines);refreshTrain();
-  }));
+  document.querySelectorAll('#rEdit [data-r]').forEach(el=>{
+    const k=el.dataset.k;
+    /* 글자 입력칸은 다시 그리면 커서가 튀므로 저장만 하고 화면은 유지한다 */
+    if(k==='n'||k==='s'){
+      el.addEventListener('input',()=>{
+        routines[key][+el.dataset.r][k]=el.value;
+        ls.set(K.rt,routines);
+      });
+      el.addEventListener('blur',refreshTrain);
+    }else{
+      el.addEventListener('change',()=>{
+        const i=+el.dataset.r;
+        routines[key][i][k]=(k==='sets'||k==='rest')?Math.max(1,num(el.value)):el.value;
+        ls.set(K.rt,routines);refreshTrain();
+      });
+    }
+  });
   /* 순서 이동 — 첫 항목이 되면 묶임은 자동으로 풀린다 */
   const rMove=(i,dir)=>{
     if(!moveItem(routines[key],i,dir))return;
