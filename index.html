@@ -524,6 +524,48 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 .saveStat{font-family:var(--mono);font-size:11px;color:var(--dim);flex:1;line-height:1.4}
 .saveStat b{color:var(--ink)}
 .savebar .btn{width:auto;padding:12px 26px;margin:0}
+.savebar .btn.lock{background:var(--panel);color:var(--dim);border:1px solid var(--line);padding:12px 18px}
+.savebar .btn.locked{background:var(--up);color:#fff;border-color:var(--up)}
+
+/* ── 확정 잠금 ── */
+.lockNote{
+  display:flex;align-items:center;gap:8px;
+  padding:11px 14px;background:var(--up-soft);
+  border-bottom:1px solid #B9E3D3;
+  font-family:var(--mono);font-size:11.5px;color:var(--up);
+}
+.lockNote b{font-weight:700}
+body.locked .ex input,body.locked .ex textarea,body.locked .ex select{
+  pointer-events:none;background:var(--panel2);color:var(--dim);
+}
+body.locked .setDrop,body.locked .skipBtn,body.locked .camBtn,
+body.locked .stBtn,body.locked .tReset,body.locked .shot button,
+body.locked #sessBtn,body.locked #clearDay,body.locked [data-noteclear]{
+  pointer-events:none;opacity:.45;
+}
+body.locked .ex{opacity:.92}
+
+/* ── 시간 직접 수정 ── */
+.editTime{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:10px 14px;border-top:1px solid var(--line-soft);
+}
+.editTime label{font-family:var(--mono);font-size:10.5px;color:var(--dimmer);flex:0 0 auto}
+.editTime input[type=time]{
+  font-family:var(--mono);font-size:13px;padding:6px 8px;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:7px;
+}
+.editTime input[type=time]:focus{outline:0;border-color:var(--amber)}
+.tEdit{
+  width:52px;padding:6px 3px;text-align:center;
+  font-family:var(--mono);font-size:12px;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;
+}
+.tEdit:focus{outline:0;border-color:var(--amber);background:#FFFBF0}
+.editRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px}
+.editRow .rowUnit{color:var(--dimmer)}
 
 /* ── lightbox ── */
 .lb{
@@ -590,6 +632,9 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       <div class="phead"><h2>오늘 기록</h2>
         <button class="linkBtn warn" id="clearDay">이 날짜 비우기</button>
       </div>
+      <div class="lockNote" id="lockNote" style="display:none">
+        <b>확정된 기록입니다</b> · 수정하려면 하단의 확정됨 버튼을 누르세요
+      </div>
       <div class="sess">
         <button class="btn" id="sessBtn">운동 시작</button>
         <div class="sessInfo" id="sessInfo">시작을 누르면 세션 전체 시간이 기록됩니다.</div>
@@ -611,6 +656,11 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
       <div class="focusWrap" id="focusWrap" style="display:none">
         <div class="focusTop"><span>집중도</span><b id="focusPct">—</b></div>
         <div class="track"><i id="focusBar" style="width:0%;background:var(--amber)"></i></div>
+      </div>
+      <div class="editTime" id="sessEdit" style="display:none">
+        <label>시작</label><input type="time" id="sStart">
+        <label>종료</label><input type="time" id="sEnd">
+        <button class="linkBtn" id="sessClear" style="margin-left:auto">세션 삭제</button>
       </div>
       <div class="hint" id="dayInfo">—</div>
     </div>
@@ -742,6 +792,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 <div class="savebar">
   <div class="inner">
     <div class="saveStat" id="saveStat">—</div>
+    <button class="btn lock" id="lockBtn">확정</button>
     <button class="btn" id="save">저장</button>
   </div>
 </div>
@@ -859,6 +910,9 @@ let slot=ls.get('tl_slot','b');   // 새로 추가할 끼니
 let weights=ls.get('tl_weights',{});   // {날짜: kg}
 /* 요일 기본값을 그날만 뒤집는 예외 {날짜: true|false} */
 let dayType=ls.get('tl_daytype',{});
+/* 확정된 날짜 {날짜: true} — 실수로 값이 바뀌는 것을 막는다 */
+let locked=ls.get('tl_locked',{});
+function isLocked(d){return !!locked[d]}
 let cur=todayStr();
 let draft={};
 let shots={};      // 현재 날짜의 사진 {exId:[dataURL,...]}
@@ -1207,6 +1261,15 @@ function renderRoutine(){
              <button class="tReset" data-treset="${lead.id}">초기화</button>`
           : '세트 버튼을 눌러 시간을 재세요'}
       </div>
+      ${gSkip||isLocked(cur)?'':`
+      <div class="editRow">
+        ${Array.from({length:nSet},(_,i)=>
+          (dl.off||[]).includes(i)?'':
+          `<input class="tEdit" type="number" inputmode="numeric" min="0" placeholder="—"
+            value="${Math.round((dl.secs&&dl.secs[i])||0)||''}" data-secedit="${lead.id}" data-i="${i}">`
+        ).join('')}
+        <span class="rowUnit">세트 시간 (초)</span>
+      </div>`}
       ${rest&&rest.id===lead.id?restBoxHtml():''}`;
 
     const cmpHead=cmp
@@ -1312,6 +1375,23 @@ function renderRoutine(){
     }
     saveLog(true);renderRoutine();renderTime();
   }));
+  host.querySelectorAll('[data-secedit]').forEach(inp=>inp.addEventListener('input',e=>{
+    const id=e.target.dataset.secedit,i=+e.target.dataset.i;
+    draft[id].secs[i]=Math.max(0,num(e.target.value));
+    const card=e.target.closest('.ex'),lab=card&&card.querySelector('.exTime');
+    if(lab){
+      const t=liveSec(id);
+      lab.innerHTML=t>0
+        ? `운동 시간 <b>${clock(t)}</b>${allSetsTimed(id)?' · 전 세트 완료':''} <button class="tReset" data-treset="${id}">초기화</button>`
+        : '세트 버튼을 눌러 시간을 재세요';
+      const rb=lab.querySelector('[data-treset]');
+      if(rb)rb.addEventListener('click',()=>{
+        if(!confirm('이 운동의 세트 시간을 모두 0으로 되돌립니다.'))return;
+        draft[id].secs=draft[id].secs.map(()=>0);saveLog(true);renderRoutine();renderTime();
+      });
+    }
+    saveLog(true);
+  }));
   host.querySelectorAll('[data-restend]').forEach(b=>b.addEventListener('click',stopRest));
   host.querySelectorAll('[data-restadd]').forEach(b=>b.addEventListener('click',()=>{
     if(!rest)return;
@@ -1342,6 +1422,7 @@ function sessElapsed(d){
   return ((s.end||Date.now())-s.start)/1000;
 }
 function toggleSession(){
+  if(isLocked(cur))return;
   const s=sessOf(cur);
   if(!s||!s.start){
     sessions[cur]={start:Date.now(),end:null};
@@ -1362,9 +1443,14 @@ function renderSession(){
 
   if(!s||!s.start){
     btn.textContent='운동 시작';btn.className='btn';
-    info.textContent='시작을 누르면 세션 전체 시간이 기록됩니다.';
+    info.textContent='시작을 누르거나 아래에 시각을 직접 넣을 수 있습니다.';
     stats.style.display='none';fw.style.display='none';
     if(sessTick){clearInterval(sessTick);sessTick=null}
+    const ed0=document.getElementById('sessEdit');
+    ed0.style.display=isLocked(cur)?'none':'';
+    const s0=document.getElementById('sStart'),e0=document.getElementById('sEnd');
+    if(document.activeElement!==s0)s0.value='';
+    if(document.activeElement!==e0)e0.value='';
     return;
   }
   const running_=!s.end;
@@ -1396,6 +1482,20 @@ function renderSession(){
   /* 진행 중이면 1초마다 갱신 */
   if(running_&&!sessTick)sessTick=setInterval(renderSession,1000);
   if(!running_&&sessTick){clearInterval(sessTick);sessTick=null}
+
+  /* 직접 수정칸 채우기 */
+  const ed=document.getElementById('sessEdit');
+  ed.style.display=isLocked(cur)?'none':'';
+  const si=document.getElementById('sStart'),ei=document.getElementById('sEnd');
+  if(document.activeElement!==si)si.value=hhmm(s.start);
+  if(document.activeElement!==ei)ei.value=s.end?hhmm(s.end):'';
+}
+/* 'HH:MM' 을 그날 날짜의 실제 시각으로 바꾼다 */
+function timeToMs(d,hm){
+  if(!hm)return null;
+  const [h,m]=hm.split(':').map(Number);
+  const t=new Date(d+'T00:00:00');t.setHours(h,m,0,0);
+  return t.getTime();
 }
 let sessTick=null;
 
@@ -1458,6 +1558,7 @@ function stopTimer(){
   saveLog(true);
 }
 function toggleTimer(id,set){
+  if(isLocked(cur))return;
   if(running&&running.id===id&&running.set===set){
     const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
     stopTimer();
@@ -1557,6 +1658,7 @@ function updateStat(){
   document.getElementById('dayInfo').textContent=bits.length?bits.join(' · '):'아직 저장된 기록이 없습니다.';
 }
 function saveLog(silent){
+  if(isLocked(cur)&&silent!==true)return;
   const list=isWorkout(cur)?routines.workout:routines.rest;
   const ex=[];
   list.forEach(x=>{
@@ -1581,12 +1683,13 @@ function saveLog(silent){
   flash('저장됨');
 }
 async function clearDay(){
+  if(isLocked(cur)){alert('확정된 날짜입니다. 먼저 확정을 해제해 주세요.');return}
   if(!confirm(`${cur} 기록을 모두 지웁니다.\n입력값·메모·사진·시간이 함께 사라집니다.`))return;
   if(running){running=null;if(tick){clearInterval(tick);tick=null}}
   delete logs[cur];ls.set(K.lg,logs);
   delete sessions[cur];ls.set('tl_sessions',sessions);
   for(const id of Object.keys(shots))await IDB.del(cur+'::'+id);
-  shots={};loadDraft();renderRoutine();renderVolume();renderTime();renderSession();updateStat();updateUsage();
+  shots={};loadDraft();renderLock();renderRoutine();renderVolume();renderTime();renderSession();updateStat();updateUsage();
   flash('비웠음');
 }
 
@@ -1973,9 +2076,32 @@ function flash(msg){
   b.textContent=msg;b.style.background='var(--up)';b.style.color='#fff';
   setTimeout(()=>{b.textContent=o;b.style.background='';b.style.color=''},1100);
 }
+/* 확정하면 그날 기록이 잠긴다. 해제하려면 한 번 더 확인한다. */
+function toggleLock(){
+  if(isLocked(cur)){
+    if(!confirm('확정을 해제하시겠습니까?\n해제하면 오늘 기록을 다시 수정할 수 있습니다.'))return;
+    delete locked[cur];
+  }else{
+    saveLog(true);            // 확정 전에 입력값을 확실히 저장
+    locked[cur]=true;
+  }
+  ls.set('tl_locked',locked);
+  refreshTrain();
+}
+function renderLock(){
+  const on=isLocked(cur);
+  document.body.classList.toggle('locked',on);
+  const b=document.getElementById('lockBtn');
+  b.textContent=on?'확정됨':'확정';
+  b.className='btn lock'+(on?' locked':'');
+  document.getElementById('save').style.display=on?'none':'';
+  const ln=document.getElementById('lockNote');
+  if(ln)ln.style.display=on?'':'none';
+}
+
 async function refreshTrain(){
   await loadShots();
-  loadDraft();renderRoutine();renderVolume();renderTime();renderSession();updateStat();
+  loadDraft();renderLock();renderRoutine();renderVolume();renderTime();renderSession();updateStat();
   const t=document.getElementById('daytag');
   t.textContent=DAYS[dow(cur)]+'·'+(isWorkout(cur)?'운동':'휴식');
   t.className='daytag'+(isWorkout(cur)?' on':'')+(isOverridden(cur)?' edited':'');
@@ -1983,6 +2109,7 @@ async function refreshTrain(){
 
 /* 그날만 운동일 ↔ 휴식일을 바꾼다. 요일 설정은 건드리지 않는다. */
 async function toggleDayType(){
+  if(isLocked(cur)){alert('확정된 날짜입니다. 먼저 확정을 해제해 주세요.');return}
   const now=isWorkout(cur);
   const lg=logs[cur];
   if(lg&&lg.ex.length){
@@ -2032,6 +2159,22 @@ document.getElementById('save').addEventListener('click',()=>saveLog(false));
 document.getElementById('clearDay').addEventListener('click',clearDay);
 document.getElementById('sessBtn').addEventListener('click',toggleSession);
 document.getElementById('daytag').addEventListener('click',toggleDayType);
+document.getElementById('lockBtn').addEventListener('click',toggleLock);
+['sStart','sEnd'].forEach(id=>document.getElementById(id).addEventListener('change',()=>{
+  const sv=document.getElementById('sStart').value,ev=document.getElementById('sEnd').value;
+  if(!sv){delete sessions[cur];ls.set('tl_sessions',sessions);renderSession();renderTime();return}
+  const start=timeToMs(cur,sv);
+  let end=ev?timeToMs(cur,ev):null;
+  if(end!==null&&end<start)end+=86400000;      // 자정을 넘긴 경우
+  sessions[cur]={start,end};
+  ls.set('tl_sessions',sessions);renderSession();renderTime();
+}));
+document.getElementById('sessClear').addEventListener('click',()=>{
+  if(!confirm('이 날짜의 세션 시간을 지웁니다.'))return;
+  delete sessions[cur];ls.set('tl_sessions',sessions);
+  if(sessTick){clearInterval(sessTick);sessTick=null}
+  renderSession();renderTime();
+});
 document.getElementById('wIn').addEventListener('input',e=>{
   const v=num(e.target.value);
   if(v>0)weights[cur]=Math.round(v*10)/10;else delete weights[cur];
@@ -2130,7 +2273,7 @@ document.getElementById('addFood').addEventListener('click',()=>{
 });
 document.getElementById('exp').addEventListener('click',async()=>{
   const photos=await IDB.all();
-  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,photos});
+  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,locked,photos});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
   a.download='nagis-training-log_'+todayStr()+'.json';a.click();
@@ -2151,6 +2294,7 @@ document.getElementById('imp').addEventListener('click',()=>{
         if(d.weights){weights=d.weights;ls.set('tl_weights',weights)}
         if(d.sessions){sessions=d.sessions;ls.set('tl_sessions',sessions)}
         if(d.dayType){dayType=d.dayType;ls.set('tl_daytype',dayType)}
+        if(d.locked){locked=d.locked;ls.set('tl_locked',locked)}
         if(d.photos){for(const k of Object.keys(d.photos))await IDB.set(k,d.photos[k])}
         ls.set('tl_migrated',true);boot();alert('불러왔습니다.');
       }catch(e){alert('파일을 읽을 수 없습니다.')}
@@ -2161,14 +2305,14 @@ document.getElementById('imp').addEventListener('click',()=>{
 });
 document.getElementById('wipeLogs').addEventListener('click',async()=>{
   if(!confirm('모든 날짜의 운동 기록과 사진을 지웁니다.\n루틴·음식·식단은 남습니다.'))return;
-  logs={};ls.set(K.lg,logs);sessions={};ls.set('tl_sessions',sessions);await IDB.clear();
+  logs={};ls.set(K.lg,logs);sessions={};ls.set('tl_sessions',sessions);locked={};ls.set('tl_locked',locked);await IDB.clear();
   boot();alert('운동 기록을 지웠습니다.');
 });
 document.getElementById('wipe').addEventListener('click',async()=>{
   if(!confirm('모든 기록이 지워집니다. 계속할까요?'))return;
   Object.values(K).forEach(k=>localStorage.removeItem(k));
-  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');await IDB.clear();
-  weights={};sessions={};dayType={};
+  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');localStorage.removeItem('tl_locked');await IDB.clear();
+  weights={};sessions={};dayType={};locked={};
   routines=JSON.parse(JSON.stringify(DEF_ROUTINE));logs={};
   foods=JSON.parse(JSON.stringify(DEF_FOODS));meals={};
   targets=JSON.parse(JSON.stringify(DEF_TARGETS));wdays=[2,4,0];basis='std';
