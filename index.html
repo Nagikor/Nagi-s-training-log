@@ -630,7 +630,8 @@ body.locked .ex{opacity:.92}
 
     <div class="panel">
       <div class="phead"><h2>오늘 기록</h2>
-        <button class="linkBtn warn" id="clearDay">이 날짜 비우기</button>
+        <button class="linkBtn" id="skipAll" style="margin-left:auto">전체 건너뛰기</button>
+        <button class="linkBtn warn" id="clearDay" style="margin-left:6px">이 날짜 비우기</button>
       </div>
       <div class="lockNote" id="lockNote" style="display:none">
         <b>확정된 기록입니다</b> · 수정하려면 하단의 확정됨 버튼을 누르세요
@@ -1361,7 +1362,7 @@ function renderRoutine(){
       if(running&&running.id===id){running=null;if(tick){clearInterval(tick);tick=null}}
       d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.sub=d.sub.map(()=>'');d.off=[];
     }else d.skip=false;
-    saveLog(true);renderRoutine();renderTime();
+    saveLog(true);renderRoutine();renderTime();renderSkipAll();
   }));
   /* 세트 하나만 빼기 */
   host.querySelectorAll('[data-drop]').forEach(b=>b.addEventListener('click',()=>{
@@ -1689,7 +1690,7 @@ async function clearDay(){
   delete logs[cur];ls.set(K.lg,logs);
   delete sessions[cur];ls.set('tl_sessions',sessions);
   for(const id of Object.keys(shots))await IDB.del(cur+'::'+id);
-  shots={};loadDraft();renderLock();renderRoutine();renderVolume();renderTime();renderSession();updateStat();updateUsage();
+  shots={};loadDraft();renderLock();renderRoutine();renderVolume();renderTime();renderSession();updateStat();renderSkipAll();updateUsage();
   flash('비웠음');
 }
 
@@ -2097,11 +2098,50 @@ function renderLock(){
   document.getElementById('save').style.display=on?'none':'';
   const ln=document.getElementById('lockNote');
   if(ln)ln.style.display=on?'':'none';
+  const sa=document.getElementById('skipAll');
+  if(sa)sa.style.display=on?'none':'';
+}
+
+/* 그날 운동을 통째로 건너뛰거나 되돌린다 */
+function toggleSkipAll(){
+  if(isLocked(cur)){alert('확정된 날짜입니다. 먼저 확정을 해제해 주세요.');return}
+  const list=isWorkout(cur)?routines.workout:routines.rest;
+  if(!list.length)return;
+  const allSkipped=list.every(x=>draft[x.id]&&draft[x.id].skip);
+
+  if(allSkipped){
+    list.forEach(x=>{if(draft[x.id])draft[x.id].skip=false});
+  }else{
+    const hasData=list.some(x=>{
+      const d=draft[x.id];if(!d||d.skip)return false;
+      return d.v.some(v=>String(v).trim()!=='')||d.secs.some(s=>s>0);
+    });
+    if(hasData&&!confirm('입력된 기록과 시간이 모두 지워집니다.\n오늘 운동을 전부 건너뛸까요?'))return;
+    if(!hasData&&!confirm('오늘 운동을 전부 건너뛸까요?'))return;
+    if(running){running=null;if(tick){clearInterval(tick);tick=null}}
+    if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+    list.forEach(x=>{
+      const d=draft[x.id];if(!d)return;
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);
+      d.sub=d.sub.map(()=>'');d.off=[];
+    });
+  }
+  saveLog(true);renderRoutine();renderTime();updateStat();renderSkipAll();
+}
+/* 버튼 라벨을 상태에 맞게 바꾼다 */
+function renderSkipAll(){
+  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const b=document.getElementById('skipAll');
+  if(!b)return;
+  const allSkipped=list.length&&list.every(x=>draft[x.id]&&draft[x.id].skip);
+  b.textContent=allSkipped?'전체 되돌리기':'전체 건너뛰기';
+  b.className='linkBtn'+(allSkipped?'':' warn');
+  b.style.display=isLocked(cur)?'none':'';
 }
 
 async function refreshTrain(){
   await loadShots();
-  loadDraft();renderLock();renderRoutine();renderVolume();renderTime();renderSession();updateStat();
+  loadDraft();renderLock();renderRoutine();renderVolume();renderTime();renderSession();updateStat();renderSkipAll();
   const t=document.getElementById('daytag');
   t.textContent=DAYS[dow(cur)]+'·'+(isWorkout(cur)?'운동':'휴식');
   t.className='daytag'+(isWorkout(cur)?' on':'')+(isOverridden(cur)?' edited':'');
@@ -2157,6 +2197,7 @@ document.getElementById('prevD').addEventListener('click',()=>goDate(shift(cur,-
 document.getElementById('nextD').addEventListener('click',()=>goDate(shift(cur,1)));
 document.getElementById('save').addEventListener('click',()=>saveLog(false));
 document.getElementById('clearDay').addEventListener('click',clearDay);
+document.getElementById('skipAll').addEventListener('click',toggleSkipAll);
 document.getElementById('sessBtn').addEventListener('click',toggleSession);
 document.getElementById('daytag').addEventListener('click',toggleDayType);
 document.getElementById('lockBtn').addEventListener('click',toggleLock);
