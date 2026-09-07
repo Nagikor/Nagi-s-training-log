@@ -673,7 +673,7 @@ body.locked .ex{opacity:.92}
     <div class="panel">
       <div class="phead"><h2>체중</h2><span class="sub">아침 공복 기준 권장</span></div>
       <div class="wRow">
-        <input type="number" inputmode="decimal" step="0.1" id="wIn" placeholder="—">
+        <input type="number" inputmode="decimal" step="0.01" id="wIn" placeholder="—">
         <span class="wUnit">kg</span>
         <div class="wDelta">
           <div class="wLine" id="wPrev">—</div>
@@ -1702,6 +1702,11 @@ function mealFood(m){
 }
 
 /* ══════════ 체중 ══════════ */
+/* 소수점은 필요한 만큼만 — 69.5 는 69.5, 69.46 은 69.46 */
+function kg(n){
+  const v=Math.round(n*100)/100;
+  return Number.isInteger(v)?String(v):String(parseFloat(v.toFixed(2)));
+}
 /* 그 주에 기록된 날들의 평균. 하루 수치는 흔들리므로 평균으로 본다. */
 function weekAvgW(anchor){
   const s=weekStart(anchor);let sum=0,n=0;
@@ -1724,17 +1729,17 @@ function renderWeight(){
   const pl=document.getElementById('wPrev');
   if(cw&&pv){
     const df=cw-pv.w;
-    pl.innerHTML=`직전 ${pv.d.slice(5).replace('-','/')} ${pv.w.toFixed(1)}kg <b style="color:${df>0?'var(--down)':df<0?'var(--up)':'var(--dim)'}">${df>0?'+':''}${df.toFixed(1)}</b>`;
-  }else pl.textContent=pv?`직전 기록 ${pv.w.toFixed(1)}kg`:'직전 기록 없음';
+    pl.innerHTML=`직전 ${pv.d.slice(5).replace('-','/')} ${kg(pv.w)}kg <b style="color:${df>0?'var(--down)':df<0?'var(--up)':'var(--dim)'}">${df>0?'+':''}${kg(df)}</b>`;
+  }else pl.textContent=pv?`직전 기록 ${kg(pv.w)}kg`:'직전 기록 없음';
 
   const now=weekAvgW(cur),prev=weekAvgW(shift(weekStart(cur),-7));
   document.getElementById('wWeek').textContent=now?`이번 주 ${now.n}일 기록됨`:'이번 주 기록 없음';
-  document.getElementById('wAvg').textContent=now?now.avg.toFixed(1)+'kg':'—';
+  document.getElementById('wAvg').textContent=now?kg(now.avg)+'kg':'—';
 
   const el=document.getElementById('wDiff');
   if(now&&prev){
     const df=now.avg-prev.avg;
-    el.textContent=`${df>0?'+':''}${df.toFixed(2)}kg`;
+    el.textContent=`${df>0?'+':''}${kg(df)}kg`;
     el.style.color=df>0?'var(--down)':df<0?'var(--up)':'var(--ink)';
   }else{el.textContent='—';el.style.color=''}
 }
@@ -2218,7 +2223,7 @@ document.getElementById('sessClear').addEventListener('click',()=>{
 });
 document.getElementById('wIn').addEventListener('input',e=>{
   const v=num(e.target.value);
-  if(v>0)weights[cur]=Math.round(v*10)/10;else delete weights[cur];
+  if(v>0)weights[cur]=Math.round(v*100)/100;else delete weights[cur];
   ls.set('tl_weights',weights);renderWeight();
 });
 document.getElementById('clearMeal').addEventListener('click',()=>{
