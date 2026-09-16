@@ -294,6 +294,31 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 }
 .linkLbl.on{background:#EDE7FA;border-color:#C9BAF0;color:#5B3FA8;font-weight:700}
 .linkLbl input{margin:0;accent-color:#5B3FA8}
+.swLbl{
+  display:flex;align-items:center;gap:5px;flex:0 0 auto;
+  font-size:11.5px;color:var(--dimmer);white-space:nowrap;cursor:pointer;
+  padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
+}
+.swLbl.on{background:#DFF2EE;border-color:#9FD9CC;color:#0E7C63;font-weight:700}
+.swLbl input{margin:0;accent-color:#0E7C63}
+
+/* ── 운동 스탑워치 ── */
+.swBox{
+  display:flex;align-items:center;gap:10px;margin-top:9px;
+  padding:10px 12px;border-radius:9px;cursor:pointer;
+  background:var(--panel2);border:1px solid var(--line-soft);
+}
+.swBox.run{background:#DFF2EE;border-color:#9FD9CC}
+.swIcon{
+  flex:0 0 auto;width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--line);color:var(--dim);font-size:13px;
+}
+.swBox.run .swIcon{background:#0E7C63;border-color:#0E7C63;color:#fff}
+.swLabel{font-family:var(--mono);font-size:10.5px;color:var(--dimmer);letter-spacing:.04em}
+.swBox.run .swLabel{color:#0E7C63}
+.swVal{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--ink);margin-left:auto}
+.swBox.run .swVal{color:#0E7C63}
 
 /* ── 순서 이동 ── */
 .ord{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
@@ -339,6 +364,10 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   background:transparent;border:0;color:var(--dim);font-size:10.5px;
   cursor:pointer;text-decoration:underline;padding:2px;margin-left:auto;
 }
+.noteTag.undo{color:var(--down)}
+.noteTag.undo button{color:var(--down);font-weight:700}
+.noteTag.plain{color:var(--dimmer)}
+.noteTag.plain button{margin-left:auto}
 .note.carried{border-style:solid;border-color:#F0D89A;background:#FFFDF7}
 
 /* ── 세션 ── */
@@ -1002,15 +1031,53 @@ function liveSet(id,i){
   return running&&running.id===id&&running.set===i
     ? base+(Date.now()-running.startedAt)/1000 : base;
 }
-/* 한 운동의 총 시간 */
+/* 운동 전체를 재는 별도 스탑워치 — 세트 구분 없이 하나로 잰다 */
+function liveSw(id){
+  const base=(draft[id]&&draft[id].swSec)||0;
+  return swRunning&&swRunning.id===id ? base+(Date.now()-swRunning.startedAt)/1000 : base;
+}
+/* 한 운동의 총 시간 — 세트별 시간 + 스탑워치 시간 */
 function liveSec(id){
-  const d=draft[id];if(!d||!d.secs)return 0;
-  return d.secs.reduce((a,_,i)=>a+liveSet(id,i),0);
+  const d=draft[id];if(!d)return 0;
+  const setTotal=(d.secs||[]).reduce((a,_,i)=>a+liveSet(id,i),0);
+  return setTotal+liveSw(id);
 }
 /* 모든 세트에 시간이 찍혔는지 */
 function allSetsTimed(id){
   const d=draft[id];if(!d||!d.secs||!d.secs.length)return false;
   return d.secs.every(s=>s>0);
+}
+
+/* ── 운동 스탑워치 (세트 구분 없이 통째로 재는 용도) ── */
+let swRunning=null;   // {id, startedAt}
+let swTick=null;
+function stopStopwatch(){
+  if(!swRunning)return;
+  const{id,startedAt}=swRunning;
+  const d=draft[id];
+  if(d)d.swSec=(d.swSec||0)+(Date.now()-startedAt)/1000;
+  swRunning=null;
+  if(swTick){clearInterval(swTick);swTick=null}
+  saveLog(true);
+}
+function toggleStopwatch(id){
+  if(isLocked(cur))return;
+  if(swRunning&&swRunning.id===id){
+    stopStopwatch();renderRoutine();renderTime();renderSession();return;
+  }
+  if(swRunning)stopStopwatch();     // 다른 운동 스탑워치가 돌고 있으면 먼저 확정
+  if(running)stopTimer();           // 세트 타이머와 동시에 돌면 시간이 겹쳐 집계되므로 먼저 멈춘다
+  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+  swRunning={id,startedAt:Date.now()};
+  unlockAudio();
+  if(swTick)clearInterval(swTick);
+  swTick=setInterval(()=>{
+    const el=document.querySelector(`[data-swval="${id}"]`);
+    if(el)el.textContent=clock(liveSw(id));
+    renderExTimeLive(id);
+    renderTime();renderSession();
+  },1000);
+  renderRoutine();
 }
 
 /* ══════════ 사진 ══════════ */
@@ -1070,7 +1137,61 @@ function prevNote(id){
   return null;
 }
 
+/* 방금 지운 메모 하나만 기억해서 되돌릴 수 있게 한다 (세션 동안만 유지) */
+let noteUndo=null;   // {id, day, sourceDate, oldNote}
+
+/* 메모를 완전히 지운다 — 이어받은 메모라면 그 원본이 저장된 날짜의 기록까지 비워서
+   이후 어떤 날을 열어도 다시 나타나지 않게 한다. 되돌리기 한 건은 기억해 둔다. */
+function deleteNote(id){
+  const d=draft[id];if(!d||!d.note||!d.note.trim())return;
+  const sourceDate=d.carried||cur;
+  const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===id);
+  const oldNote=entry?entry.note:d.note;
+
+  noteUndo={id,day:cur,sourceDate,oldNote};
+  if(entry){entry.note='';ls.set(K.lg,logs)}
+  d.note='';d.carried=null;
+  saveLog(true);renderRoutine();
+}
+/* 방금 지운 메모를 되살린다 */
+function undoNote(){
+  if(!noteUndo||noteUndo.day!==cur){noteUndo=null;renderRoutine();return}
+  const{id,sourceDate,oldNote}=noteUndo;
+  const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===id);
+  if(entry){entry.note=oldNote;ls.set(K.lg,logs)}
+  if(draft[id]){
+    draft[id].note=oldNote;
+    draft[id].carried=sourceDate===cur?null:sourceDate;
+  }
+  noteUndo=null;
+  saveLog(true);renderRoutine();
+}
+
+/* 메모 칸 바로 위의 안내 태그(이어옴/되돌리기/지우기)를 전체 재렌더 없이 즉시 맞춘다.
+   타이핑 중에는 renderRoutine()을 부르면 커서가 튀므로 이 함수로 DOM만 살짝 고친다. */
+function syncNoteTag(ta,id){
+  let tag=ta.previousElementSibling;
+  if(tag&&!tag.classList.contains('noteTag'))tag=null;
+  const has=!!(draft[id]&&draft[id].note&&draft[id].note.trim());
+  if(has){
+    if(!tag){
+      tag=document.createElement('div');
+      tag.className='noteTag plain';
+      tag.innerHTML=`<button data-noteclear="${id}">메모 지우기</button>`;
+      tag.querySelector('button').addEventListener('click',()=>deleteNote(id));
+      ta.parentNode.insertBefore(tag,ta);
+    }else if(!tag.classList.contains('plain')){
+      tag.className='noteTag plain';
+      tag.innerHTML=`<button data-noteclear="${id}">메모 지우기</button>`;
+      tag.querySelector('button').addEventListener('click',()=>deleteNote(id));
+    }
+  }else if(tag){
+    tag.remove();
+  }
+}
+
 function loadDraft(){
+  noteUndo=null;   // 날짜를 옮기면 되돌리기 대상도 함께 사라진다
   const saved=logs[cur];draft={};
   const list=isWorkout(cur)?routines.workout:routines.rest;
   list.forEach(ex=>{
@@ -1088,6 +1209,7 @@ function loadDraft(){
       carried,
       n:hit&&hit.n?hit.n:ex.n,
       secs:hit&&hit.secs?hit.secs.slice():new Array(ex.sets).fill(0),
+      swSec:hit&&hit.sw?hit.sw:0,
       sub:hit&&hit.sub?hit.sub.slice():new Array(ex.sets).fill(''),
       skip:!!(hit&&hit.skip),
       off:hit&&hit.off?hit.off.slice():[]
@@ -1184,7 +1306,7 @@ function renderRoutine(){
         if(sub)subBoxes+=`<input class="subIn" type="number" inputmode="decimal" step="${sub==='kg'?'0.5':'1'}" placeholder="—" value="${d.sub&&d.sub[i]!=null?d.sub[i]:''}" data-sub="${ex.id}" data-i="${i}"${dropped||d.skip?' disabled':''}>`;
       }
       const subRow=sub
-        ? `<div class="setRow">${subBoxes}<span class="rowUnit">${sub==='kg'?'무게 (kg)':'최대 홀드 (초) · ⏱ 세트 타이머로 자동 기록'}</span></div>`
+        ? `<div class="setRow">${subBoxes}<span class="rowUnit">${sub==='kg'?'무게 (kg)':'최대 홀드 (초)'}</span></div>`
         : '';
       const ph=shots[ex.id]||[];
       const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
@@ -1224,7 +1346,7 @@ function renderRoutine(){
           </button>`;
         }).join('')}
       </div>
-      <div class="exTime${allSetsTimed(lead.id)?' full':''}">
+      <div class="exTime${allSetsTimed(lead.id)?' full':''}" data-extime="${lead.id}">
         ${liveSec(lead.id)>0
           ? `${cmp?'묶음 ':''}운동 시간 <b>${clock(liveSec(lead.id))}</b>${allSetsTimed(lead.id)?' · 전 세트 완료':''}
              <button class="tReset" data-treset="${lead.id}">초기화</button>`
@@ -1239,6 +1361,15 @@ function renderRoutine(){
         ).join('')}
         <span class="rowUnit">세트 시간 (초)</span>
       </div>`}
+      ${gSkip||!lead.stopwatch?'':(()=>{
+        const on=swRunning&&swRunning.id===lead.id;
+        const sec=liveSw(lead.id);
+        return `<div class="swBox${on?' run':''}" data-stopwatch="${lead.id}">
+          <span class="swIcon">${on?'■':'▶'}</span>
+          <span class="swLabel">${on?'스탑워치 진행 중':'스탑워치'}</span>
+          <span class="swVal" data-swval="${lead.id}">${clock(sec)}</span>
+        </div>`;
+      })()}
       ${rest&&rest.id===lead.id?restBoxHtml():''}`;
 
     const cmpHead=cmp
@@ -1246,9 +1377,17 @@ function renderRoutine(){
            <div class="exName">컴파운드 세트<span class="cmpTag">${g.length}종 · ${nSet}세트</span></div>
            <div class="exMeta">휴식 ${lead.rest}초</div></div>`
       : '';
+    const noteBanner=(()=>{
+      if(dl.carried)return `<div class="noteTag">지난 메모 이어옴 · ${dl.carried.slice(5).replace('-','/')}
+          <button data-noteclear="${lead.id}">지우기</button></div>`;
+      if(noteUndo&&noteUndo.id===lead.id&&noteUndo.day===cur)
+        return `<div class="noteTag undo">메모를 삭제했습니다 <button data-noteundo="${lead.id}">되돌리기</button></div>`;
+      if(dl.note&&dl.note.trim())
+        return `<div class="noteTag plain"><button data-noteclear="${lead.id}">메모 지우기</button></div>`;
+      return'';
+    })();
     const cmpNote=gSkip?''
-      :`${dl.carried?`<div class="noteTag">지난 메모 이어옴 · ${dl.carried.slice(5).replace('-','/')}
-          <button data-noteclear="${lead.id}">지우기</button></div>`:''}
+      :`${noteBanner}
         <textarea class="note${dl.carried?' carried':''}" rows="2" placeholder="메모" data-note="${lead.id}">${esc(dl.note)}</textarea>`;
 
     html+=`<div class="ex${gSkip?' skip':''}">${cmpHead}${movs}${timers}${cmpNote}</div>`;
@@ -1301,24 +1440,28 @@ function renderRoutine(){
       if(draft[id].carried){          // 손대는 순간 오늘 메모가 된다
         draft[id].carried=null;
         e.target.classList.remove('carried');
-        const tag=e.target.previousElementSibling;
-        if(tag&&tag.classList.contains('noteTag'))tag.remove();
       }
+      /* 직접 입력을 시작하면 직전 삭제에 대한 되돌리기는 더 이상 유효하지 않다 */
+      if(noteUndo&&noteUndo.id===id&&noteUndo.day===cur)noteUndo=null;
+      syncNoteTag(e.target,id);
       fit();
     });
   });
   host.querySelectorAll('[data-noteclear]').forEach(b=>b.addEventListener('click',()=>{
-    const id=b.dataset.noteclear;
-    draft[id].note='';draft[id].carried=null;
-    renderRoutine();
+    deleteNote(b.dataset.noteclear);
   }));
+  host.querySelectorAll('[data-noteundo]').forEach(b=>b.addEventListener('click',undoNote));
   host.querySelectorAll('[data-timer]').forEach(b=>b.addEventListener('click',()=>
     toggleTimer(b.dataset.timer,+b.dataset.set)));
+  host.querySelectorAll('[data-stopwatch]').forEach(b=>b.addEventListener('click',()=>
+    toggleStopwatch(b.dataset.stopwatch)));
   host.querySelectorAll('[data-treset]').forEach(b=>b.addEventListener('click',()=>{
     const id=b.dataset.treset;
-    if(!confirm('이 운동의 세트 시간을 모두 0으로 되돌립니다.'))return;
+    if(!confirm('이 운동의 세트 시간과 스탑워치 시간을 모두 0으로 되돌립니다.'))return;
     if(running&&running.id===id)stopTimer();
+    if(swRunning&&swRunning.id===id)stopStopwatch();
     draft[id].secs=draft[id].secs.map(()=>0);
+    draft[id].swSec=0;
     saveLog(true);renderRoutine();renderTime();
   }));
   /* 오늘만 이 운동을 빼거나 되돌린다. 루틴 원본은 그대로다. */
@@ -1328,7 +1471,8 @@ function renderRoutine(){
       const hasData=d.v.some(v=>String(v).trim()!=='')||d.secs.some(s=>s>0);
       if(hasData&&!confirm('입력된 기록과 시간이 함께 지워집니다. 건너뛸까요?'))return;
       if(running&&running.id===id){running=null;if(tick){clearInterval(tick);tick=null}}
-      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.sub=d.sub.map(()=>'');d.off=[];
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSec=0;d.sub=d.sub.map(()=>'');d.off=[];
+      if(swRunning&&swRunning.id===id){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
     }else d.skip=false;
     saveLog(true);renderRoutine();renderTime();renderSkipAll();
   }));
@@ -1397,6 +1541,7 @@ function toggleSession(){
     sessions[cur]={start:Date.now(),end:null};
   }else if(!s.end){
     if(running)stopTimer();          // 돌던 세트를 확정하고 종료
+    if(swRunning)stopStopwatch();
     if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
     s.end=Date.now();
   }else{
@@ -1517,21 +1662,32 @@ function renderRestBox(){
   if(b)b.style.width=over?'100%':Math.max(0,(1-left/rest.len)*100)+'%';
 }
 
+/* '운동 시간' 요약 줄을 그 자리에서 다시 계산해 넣는다 — 타이머·스탑워치가 도는 동안 매초 호출된다 */
+function renderExTimeLive(id){
+  const el=document.querySelector(`[data-extime="${id}"]`);
+  if(!el)return;
+  const t=liveSec(id);
+  el.classList.toggle('full',allSetsTimed(id));
+  el.innerHTML=t>0
+    ? `운동 시간 <b>${clock(t)}</b>${allSetsTimed(id)?' · 전 세트 완료':''}
+       <button class="tReset" data-treset="${id}">초기화</button>`
+    : '세트 버튼을 눌러 시간을 재세요';
+  const rb=el.querySelector('[data-treset]');
+  if(rb)rb.addEventListener('click',()=>{
+    if(!confirm('이 운동의 세트 시간과 스탑워치 시간을 모두 0으로 되돌립니다.'))return;
+    if(running&&running.id===id)stopTimer();
+    if(swRunning&&swRunning.id===id)stopStopwatch();
+    draft[id].secs=draft[id].secs.map(()=>0);
+    draft[id].swSec=0;
+    saveLog(true);renderRoutine();renderTime();
+  });
+}
+
 /* ── 세트 타이머 ── */
 function stopTimer(){
   if(!running)return;
   const{id,set,startedAt}=running;
-  const elapsed=(Date.now()-startedAt)/1000;
-  draft[id].secs[set]=(draft[id].secs[set]||0)+elapsed;
-
-  /* '최대 홀드'로 설정된 운동은 이번 스탑워치 구간도 그 세트의 기록으로 반영한다.
-     기존 값과 비교해 더 긴 쪽만 남긴다 — 같은 세트 안에서 다시 시도해도 최고 기록이 유지된다. */
-  const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
-  if(ex&&ex.sub==='best'&&draft[id].sub){
-    const prev=num(draft[id].sub[set]);
-    draft[id].sub[set]=String(Math.max(prev,Math.round(elapsed)));
-  }
-
+  draft[id].secs[set]=(draft[id].secs[set]||0)+(Date.now()-startedAt)/1000;
   running=null;
   if(tick){clearInterval(tick);tick=null}
   saveLog(true);
@@ -1546,6 +1702,7 @@ function toggleTimer(id,set){
     return;
   }
   if(running)stopTimer();          // 다른 세트가 돌고 있으면 먼저 확정
+  if(swRunning)stopStopwatch();    // 운동 스탑워치와 겹치지 않게 먼저 멈춘다
   if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
   running={id,set,startedAt:Date.now()};
   unlockAudio();                    // 첫 탭에서 소리 권한만 조용히 열어둔다
@@ -1553,9 +1710,7 @@ function toggleTimer(id,set){
   tick=setInterval(()=>{
     const el=document.querySelector(`[data-tval="${id}-${set}"]`);
     if(el)el.textContent=clock(liveSet(id,set));
-    /* 홀드 운동이면 최대 홀드 칸에도 실시간 값을 미리 보여준다 (입력값은 정지할 때만 확정) */
-    const sub=document.querySelector(`[data-sub="${id}"][data-i="${set}"]`);
-    if(sub&&!sub.value)sub.placeholder=String(Math.round(liveSet(id,set)));
+    renderExTimeLive(id);
     renderTime();renderSession();
   },1000);
   renderRoutine();
@@ -1566,7 +1721,7 @@ function daySec(d){
     let s=0;Object.keys(draft).forEach(id=>s+=liveSec(id));return s;
   }
   const lg=logs[d];if(!lg||!lg.ex)return 0;
-  return lg.ex.reduce((a,e)=>a+((e.secs||[]).reduce((x,y)=>x+(y||0),0)),0);
+  return lg.ex.reduce((a,e)=>a+((e.secs||[]).reduce((x,y)=>x+(y||0),0))+(e.sw||0),0);
 }
 function weekSec(anchor){
   const s=weekStart(anchor);let t=0;
@@ -1646,16 +1801,17 @@ function saveLog(silent){
   list.forEach(x=>{
     const d=draft[x.id];if(!d)return;
     const secs=(d.secs||[]).map(s=>Math.round(s||0));
-    const hasTime=secs.some(s=>s>0);
+    const swSec=Math.round(d.swSec||0);
+    const hasTime=secs.some(s=>s>0)||swSec>0;
     const off=(d.off||[]).slice();
     const subv=(d.sub||[]).map(x=>String(x??''));
     const hasSub=subv.some(x=>x.trim()!=='');
     /* 이어받기만 하고 손대지 않은 메모는 그 자체로 기록이 되지 않는다 */
     const ownNote=d.carried?'':d.note;
     if(d.skip){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],sub:[],skip:true,off:[]});
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],sw:0,sub:[],skip:true,off:[]});
     }else if(d.v.some(v=>String(v).trim()!=='')||ownNote.trim()!==''||hasTime||off.length||hasSub){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,sub:subv,off});
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,sw:swSec,sub:subv,off});
     }
   });
   if(ex.length)logs[cur]={ex};else delete logs[cur];
@@ -1668,6 +1824,7 @@ async function clearDay(){
   if(isLocked(cur)){alert('확정된 날짜입니다. 먼저 확정을 해제해 주세요.');return}
   if(!confirm(`${cur} 기록을 모두 지웁니다.\n입력값·메모·사진·시간이 함께 사라집니다.`))return;
   if(running){running=null;if(tick){clearInterval(tick);tick=null}}
+  if(swRunning){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
   delete logs[cur];ls.set(K.lg,logs);
   delete sessions[cur];ls.set('tl_sessions',sessions);
   for(const id of Object.keys(shots))await IDB.del(cur+'::'+id);
@@ -1931,6 +2088,8 @@ function renderREdit(){
       </div>
       <div class="rBottom">
         <input value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름">
+        <label class="swLbl${ex.stopwatch?' on':''}">
+          <input type="checkbox" data-sw="${i}"${ex.stopwatch?' checked':''}> 스탑워치 사용</label>
         ${i>0?`<label class="linkLbl${ex.link?' on':''}">
           <input type="checkbox" data-link="${i}"${ex.link?' checked':''}> 위와 묶기</label>`:''}
       </div>
@@ -1970,6 +2129,12 @@ function renderREdit(){
     const i=+el.dataset.link;
     routines[key][i].link=el.checked;
     if(el.checked)routines[key][i].s=routines[key][i-1].s;   // 파트를 앞과 맞춘다
+    ls.set(K.rt,routines);renderREdit();refreshTrain();
+  }));
+  /* 세트 구분 없이 통째로 재는 스탑워치를 이 운동에 쓸지 여부 */
+  document.querySelectorAll('#rEdit [data-sw]').forEach(el=>el.addEventListener('change',()=>{
+    const i=+el.dataset.sw;
+    routines[key][i].stopwatch=el.checked;
     ls.set(K.rt,routines);renderREdit();refreshTrain();
   }));
   document.querySelectorAll('#rEdit [data-rx]').forEach(b=>b.addEventListener('click',()=>{
@@ -2105,10 +2270,11 @@ function toggleSkipAll(){
     if(hasData&&!confirm('입력된 기록과 시간이 모두 지워집니다.\n오늘 운동을 전부 건너뛸까요?'))return;
     if(!hasData&&!confirm('오늘 운동을 전부 건너뛸까요?'))return;
     if(running){running=null;if(tick){clearInterval(tick);tick=null}}
+    if(swRunning){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
     if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
     list.forEach(x=>{
       const d=draft[x.id];if(!d)return;
-      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSec=0;
       d.sub=d.sub.map(()=>'');d.off=[];
     });
   }
@@ -2144,6 +2310,7 @@ async function toggleDayType(){
     for(const id of Object.keys(shots))await IDB.del(cur+'::'+id);
   }
   if(running){running=null;if(tick){clearInterval(tick);tick=null}}
+  if(swRunning){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
   if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
 
   const base=wdays.includes(dow(cur));
@@ -2154,13 +2321,14 @@ async function toggleDayType(){
 }
 async function goDate(s){
   if(running)stopTimer();
+  if(swRunning)stopStopwatch();
   if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}          // 날짜를 옮기기 전에 시간을 확정 저장
   if(typeof ahClose==='function')ahClose();
   cur=s;document.getElementById('date').value=cur;
   await refreshTrain();renderMeals();renderNutrients();renderWeight();
 }
 /* 앱을 내리거나 화면이 가려져도 시간이 유실되지 않게 한다 */
-window.addEventListener('pagehide',()=>{if(running)stopTimer()});
+window.addEventListener('pagehide',()=>{if(running)stopTimer();if(swRunning)stopStopwatch()});
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'&&running)saveLog(true);
 });
