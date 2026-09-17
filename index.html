@@ -294,31 +294,25 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 }
 .linkLbl.on{background:#EDE7FA;border-color:#C9BAF0;color:#5B3FA8;font-weight:700}
 .linkLbl input{margin:0;accent-color:#5B3FA8}
-.swLbl{
-  display:flex;align-items:center;gap:5px;flex:0 0 auto;
-  font-size:11.5px;color:var(--dimmer);white-space:nowrap;cursor:pointer;
-  padding:5px 9px;border:1px solid var(--line);border-radius:6px;background:var(--panel);
-}
-.swLbl.on{background:#DFF2EE;border-color:#9FD9CC;color:#0E7C63;font-weight:700}
-.swLbl input{margin:0;accent-color:#0E7C63}
 
-/* ── 운동 스탑워치 ── */
-.swBox{
-  display:flex;align-items:center;gap:10px;margin-top:9px;
-  padding:10px 12px;border-radius:9px;cursor:pointer;
-  background:var(--panel2);border:1px solid var(--line-soft);
+/* ── 세트별 스탑워치 알람 (설정) ── */
+.swField{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.swField label{font-family:var(--mono);font-size:11px;color:var(--dimmer);white-space:nowrap}
+.swField input{
+  width:56px;padding:6px 5px;text-align:center;
+  font-family:var(--mono);font-size:12.5px;
+  background:var(--panel);color:var(--ink);
+  border:1px solid var(--line);border-radius:6px;
 }
-.swBox.run{background:#DFF2EE;border-color:#9FD9CC}
-.swIcon{
-  flex:0 0 auto;width:30px;height:30px;border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  background:var(--panel);border:1px solid var(--line);color:var(--dim);font-size:13px;
-}
-.swBox.run .swIcon{background:#0E7C63;border-color:#0E7C63;color:#fff}
-.swLabel{font-family:var(--mono);font-size:10.5px;color:var(--dimmer);letter-spacing:.04em}
-.swBox.run .swLabel{color:#0E7C63}
-.swVal{font-family:var(--mono);font-size:16px;font-weight:700;color:var(--ink);margin-left:auto}
-.swBox.run .swVal{color:#0E7C63}
+.swField input:focus{outline:0;border-color:var(--amber)}
+
+/* ── 세트별 스탑워치 알람 (운동 화면) ── */
+.stBtn.sw{background:#DFF2EE;border-color:#9FD9CC}
+.stBtn.sw .stNo{color:#0E7C63}
+.stBtn.sw .stTime{color:#0E7C63}
+.stBtn.sw.run{background:#0E7C63;border-color:#0E7C63}
+.stBtn.sw.run .stNo,.stBtn.sw.run .stTime{color:#fff}
+.stBtn.sw.reached{border-color:#0E7C63;box-shadow:inset 0 0 0 1px #0E7C63}
 
 /* ── 순서 이동 ── */
 .ord{display:flex;flex-direction:column;gap:2px;flex:0 0 auto}
@@ -778,7 +772,7 @@ body.locked .ex{opacity:.92}
       </div>
       <div id="rEdit"></div>
       <div class="btnRow"><button class="btn ghost" id="addEx">＋ 운동 추가</button></div>
-      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최대홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
+      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최대홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br><b>스탑워치(초)</b>에 시간을 넣으면 운동 화면에 세트마다 알람 버튼이 하나씩 더 생깁니다. 누르면 시작하고, 넣어둔 시간에 닿으면 휴식 종료와 같은 종이 두 번 울립니다. 0이나 빈 칸이면 나타나지 않습니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
     </div>
 
     <div class="panel">
@@ -1031,49 +1025,66 @@ function liveSet(id,i){
   return running&&running.id===id&&running.set===i
     ? base+(Date.now()-running.startedAt)/1000 : base;
 }
-/* 운동 전체를 재는 별도 스탑워치 — 세트 구분 없이 하나로 잰다 */
-function liveSw(id){
-  const base=(draft[id]&&draft[id].swSec)||0;
-  return swRunning&&swRunning.id===id ? base+(Date.now()-swRunning.startedAt)/1000 : base;
+/* 목표 시간을 향해 세트별로 재는 스탑워치. swRunning 은 {id, set, startedAt, target, rung} */
+function liveSw(id,i){
+  const base=(draft[id]&&draft[id].swSecs&&draft[id].swSecs[i])||0;
+  return swRunning&&swRunning.id===id&&swRunning.set===i
+    ? base+(Date.now()-swRunning.startedAt)/1000 : base;
 }
 /* 한 운동의 총 시간 — 세트별 시간 + 스탑워치 시간 */
 function liveSec(id){
   const d=draft[id];if(!d)return 0;
   const setTotal=(d.secs||[]).reduce((a,_,i)=>a+liveSet(id,i),0);
-  return setTotal+liveSw(id);
+  const swTotal=(d.swSecs||[]).reduce((a,_,i)=>a+liveSw(id,i),0);
+  return setTotal+swTotal;
 }
-/* 모든 세트에 시간이 찍혔는지 */
+/* 모든 세트에 시간이 찍혔는지 — 일반 타이머든 목표 스탑워치든 하나만 있어도 인정한다 */
 function allSetsTimed(id){
   const d=draft[id];if(!d||!d.secs||!d.secs.length)return false;
-  return d.secs.every(s=>s>0);
+  return d.secs.every((s,i)=>s>0||(d.swSecs&&d.swSecs[i]>0));
 }
 
-/* ── 운동 스탑워치 (세트 구분 없이 통째로 재는 용도) ── */
-let swRunning=null;   // {id, startedAt}
+/* ── 목표 시간 스탑워치 (세트마다 독립적으로, 목표에 닿으면 종이 울린다) ── */
+let swRunning=null;   // {id, set, startedAt, target, rung}
 let swTick=null;
 function stopStopwatch(){
   if(!swRunning)return;
-  const{id,startedAt}=swRunning;
+  const{id,set,startedAt}=swRunning;
   const d=draft[id];
-  if(d)d.swSec=(d.swSec||0)+(Date.now()-startedAt)/1000;
+  if(d){
+    if(!d.swSecs)d.swSecs=[];
+    d.swSecs[set]=(d.swSecs[set]||0)+(Date.now()-startedAt)/1000;
+  }
   swRunning=null;
   if(swTick){clearInterval(swTick);swTick=null}
   saveLog(true);
 }
-function toggleStopwatch(id){
+function toggleStopwatch(id,set){
   if(isLocked(cur))return;
-  if(swRunning&&swRunning.id===id){
+  if(swRunning&&swRunning.id===id&&swRunning.set===set){
     stopStopwatch();renderRoutine();renderTime();renderSession();return;
   }
-  if(swRunning)stopStopwatch();     // 다른 운동 스탑워치가 돌고 있으면 먼저 확정
+  if(swRunning)stopStopwatch();     // 다른 세트의 스탑워치가 돌고 있으면 먼저 확정
   if(running)stopTimer();           // 세트 타이머와 동시에 돌면 시간이 겹쳐 집계되므로 먼저 멈춘다
   if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
-  swRunning={id,startedAt:Date.now()};
+  const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
+  const target=ex&&num(ex.swTarget)>0?num(ex.swTarget):0;
+  /* 이전에 이미 목표 시간을 넘겨 놓은 세트를 다시 시작하면, 시작하자마자 또 울리지 않게
+     '이미 울린 것'으로 놓고 시작한다 — 이번 구간에서 새로 목표를 넘길 때만 울린다. */
+  const base=(draft[id]&&draft[id].swSecs&&draft[id].swSecs[set])||0;
+  swRunning={id,set,startedAt:Date.now(),target,rung:target>0&&base>=target};
   unlockAudio();
   if(swTick)clearInterval(swTick);
   swTick=setInterval(()=>{
-    const el=document.querySelector(`[data-swval="${id}"]`);
-    if(el)el.textContent=clock(liveSw(id));
+    const el=document.querySelector(`[data-swval="${id}-${set}"]`);
+    const elapsed=liveSw(id,set);
+    if(el)el.textContent=clock(elapsed);
+    /* 목표 시간에 닿는 순간 휴식 종료와 같은 종소리를 한 번만 울린다 */
+    if(swRunning&&swRunning.target>0&&!swRunning.rung&&elapsed>=swRunning.target){
+      swRunning.rung=true;ringTwice();
+      const box=document.querySelector(`[data-stopwatch="${id}"][data-swset="${set}"]`);
+      if(box)box.classList.add('reached');
+    }
     renderExTimeLive(id);
     renderTime();renderSession();
   },1000);
@@ -1209,13 +1220,14 @@ function loadDraft(){
       carried,
       n:hit&&hit.n?hit.n:ex.n,
       secs:hit&&hit.secs?hit.secs.slice():new Array(ex.sets).fill(0),
-      swSec:hit&&hit.sw?hit.sw:0,
+      swSecs:hit&&Array.isArray(hit.sw)?hit.sw.slice():new Array(ex.sets).fill(0),
       sub:hit&&hit.sub?hit.sub.slice():new Array(ex.sets).fill(''),
       skip:!!(hit&&hit.skip),
       off:hit&&hit.off?hit.off.slice():[]
     };
     while(draft[ex.id].v.length<ex.sets)draft[ex.id].v.push('');
     while(draft[ex.id].secs.length<ex.sets)draft[ex.id].secs.push(0);
+    while(draft[ex.id].swSecs.length<ex.sets)draft[ex.id].swSecs.push(0);
     while(draft[ex.id].sub.length<ex.sets)draft[ex.id].sub.push('');
   });
 }
@@ -1346,6 +1358,19 @@ function renderRoutine(){
           </button>`;
         }).join('')}
       </div>
+      ${gSkip||!(num(lead.swTarget)>0)?'':`
+      <div class="setTimers sw2">
+        ${Array.from({length:nSet},(_,i)=>{
+          if((dl.off||[]).includes(i))return'';
+          const on=swRunning&&swRunning.id===lead.id&&swRunning.set===i;
+          const sc=liveSw(lead.id,i);
+          const reached=sc>=num(lead.swTarget);
+          return `<button class="stBtn sw${on?' run':sc>0?' done':''}${reached?' reached':''}" data-stopwatch="${lead.id}" data-swset="${i}">
+            <span class="stNo">${i+1}세트 · ${num(lead.swTarget)}초</span>
+            <span class="stTime" data-swval="${lead.id}-${i}">${sc>0||on?clock(sc):'시작'}</span>
+          </button>`;
+        }).join('')}
+      </div>`}
       <div class="exTime${allSetsTimed(lead.id)?' full':''}" data-extime="${lead.id}">
         ${liveSec(lead.id)>0
           ? `${cmp?'묶음 ':''}운동 시간 <b>${clock(liveSec(lead.id))}</b>${allSetsTimed(lead.id)?' · 전 세트 완료':''}
@@ -1361,15 +1386,6 @@ function renderRoutine(){
         ).join('')}
         <span class="rowUnit">세트 시간 (초)</span>
       </div>`}
-      ${gSkip||!lead.stopwatch?'':(()=>{
-        const on=swRunning&&swRunning.id===lead.id;
-        const sec=liveSw(lead.id);
-        return `<div class="swBox${on?' run':''}" data-stopwatch="${lead.id}">
-          <span class="swIcon">${on?'■':'▶'}</span>
-          <span class="swLabel">${on?'스탑워치 진행 중':'스탑워치'}</span>
-          <span class="swVal" data-swval="${lead.id}">${clock(sec)}</span>
-        </div>`;
-      })()}
       ${rest&&rest.id===lead.id?restBoxHtml():''}`;
 
     const cmpHead=cmp
@@ -1454,14 +1470,14 @@ function renderRoutine(){
   host.querySelectorAll('[data-timer]').forEach(b=>b.addEventListener('click',()=>
     toggleTimer(b.dataset.timer,+b.dataset.set)));
   host.querySelectorAll('[data-stopwatch]').forEach(b=>b.addEventListener('click',()=>
-    toggleStopwatch(b.dataset.stopwatch)));
+    toggleStopwatch(b.dataset.stopwatch,+b.dataset.swset)));
   host.querySelectorAll('[data-treset]').forEach(b=>b.addEventListener('click',()=>{
     const id=b.dataset.treset;
     if(!confirm('이 운동의 세트 시간과 스탑워치 시간을 모두 0으로 되돌립니다.'))return;
     if(running&&running.id===id)stopTimer();
     if(swRunning&&swRunning.id===id)stopStopwatch();
     draft[id].secs=draft[id].secs.map(()=>0);
-    draft[id].swSec=0;
+    draft[id].swSecs=draft[id].swSecs.map(()=>0);
     saveLog(true);renderRoutine();renderTime();
   }));
   /* 오늘만 이 운동을 빼거나 되돌린다. 루틴 원본은 그대로다. */
@@ -1471,7 +1487,7 @@ function renderRoutine(){
       const hasData=d.v.some(v=>String(v).trim()!=='')||d.secs.some(s=>s>0);
       if(hasData&&!confirm('입력된 기록과 시간이 함께 지워집니다. 건너뛸까요?'))return;
       if(running&&running.id===id){running=null;if(tick){clearInterval(tick);tick=null}}
-      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSec=0;d.sub=d.sub.map(()=>'');d.off=[];
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSecs=d.swSecs.map(()=>0);d.sub=d.sub.map(()=>'');d.off=[];
       if(swRunning&&swRunning.id===id){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
     }else d.skip=false;
     saveLog(true);renderRoutine();renderTime();renderSkipAll();
@@ -1484,7 +1500,8 @@ function renderRoutine(){
     if(at>=0)d.off.splice(at,1);
     else{
       if(running&&running.id===id&&running.set===i){running=null;if(tick){clearInterval(tick);tick=null}}
-      d.off.push(i);d.v[i]='';d.secs[i]=0;d.sub[i]='';
+      if(swRunning&&swRunning.id===id&&swRunning.set===i){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
+      d.off.push(i);d.v[i]='';d.secs[i]=0;d.swSecs[i]=0;d.sub[i]='';
     }
     saveLog(true);renderRoutine();renderTime();
   }));
@@ -1678,7 +1695,7 @@ function renderExTimeLive(id){
     if(running&&running.id===id)stopTimer();
     if(swRunning&&swRunning.id===id)stopStopwatch();
     draft[id].secs=draft[id].secs.map(()=>0);
-    draft[id].swSec=0;
+    draft[id].swSecs=draft[id].swSecs.map(()=>0);
     saveLog(true);renderRoutine();renderTime();
   });
 }
@@ -1721,7 +1738,7 @@ function daySec(d){
     let s=0;Object.keys(draft).forEach(id=>s+=liveSec(id));return s;
   }
   const lg=logs[d];if(!lg||!lg.ex)return 0;
-  return lg.ex.reduce((a,e)=>a+((e.secs||[]).reduce((x,y)=>x+(y||0),0))+(e.sw||0),0);
+  return lg.ex.reduce((a,e)=>a+((e.secs||[]).reduce((x,y)=>x+(y||0),0))+((e.sw||[]).reduce((x,y)=>x+(y||0),0)),0);
 }
 function weekSec(anchor){
   const s=weekStart(anchor);let t=0;
@@ -1801,17 +1818,17 @@ function saveLog(silent){
   list.forEach(x=>{
     const d=draft[x.id];if(!d)return;
     const secs=(d.secs||[]).map(s=>Math.round(s||0));
-    const swSec=Math.round(d.swSec||0);
-    const hasTime=secs.some(s=>s>0)||swSec>0;
+    const swSecs=(d.swSecs||[]).map(s=>Math.round(s||0));
+    const hasTime=secs.some(s=>s>0)||swSecs.some(s=>s>0);
     const off=(d.off||[]).slice();
     const subv=(d.sub||[]).map(x=>String(x??''));
     const hasSub=subv.some(x=>x.trim()!=='');
     /* 이어받기만 하고 손대지 않은 메모는 그 자체로 기록이 되지 않는다 */
     const ownNote=d.carried?'':d.note;
     if(d.skip){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],sw:0,sub:[],skip:true,off:[]});
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],sw:[],sub:[],skip:true,off:[]});
     }else if(d.v.some(v=>String(v).trim()!=='')||ownNote.trim()!==''||hasTime||off.length||hasSub){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,sw:swSec,sub:subv,off});
+      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,sw:swSecs,sub:subv,off});
     }
   });
   if(ex.length)logs[cur]={ex};else delete logs[cur];
@@ -2088,8 +2105,10 @@ function renderREdit(){
       </div>
       <div class="rBottom">
         <input value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름">
-        <label class="swLbl${ex.stopwatch?' on':''}">
-          <input type="checkbox" data-sw="${i}"${ex.stopwatch?' checked':''}> 스탑워치 사용</label>
+        <div class="swField">
+          <label>스탑워치</label>
+          <input type="number" inputmode="numeric" min="0" placeholder="초" value="${ex.swTarget||''}" data-r="${i}" data-k="swTarget">
+        </div>
         ${i>0?`<label class="linkLbl${ex.link?' on':''}">
           <input type="checkbox" data-link="${i}"${ex.link?' checked':''}> 위와 묶기</label>`:''}
       </div>
@@ -2129,12 +2148,6 @@ function renderREdit(){
     const i=+el.dataset.link;
     routines[key][i].link=el.checked;
     if(el.checked)routines[key][i].s=routines[key][i-1].s;   // 파트를 앞과 맞춘다
-    ls.set(K.rt,routines);renderREdit();refreshTrain();
-  }));
-  /* 세트 구분 없이 통째로 재는 스탑워치를 이 운동에 쓸지 여부 */
-  document.querySelectorAll('#rEdit [data-sw]').forEach(el=>el.addEventListener('change',()=>{
-    const i=+el.dataset.sw;
-    routines[key][i].stopwatch=el.checked;
     ls.set(K.rt,routines);renderREdit();refreshTrain();
   }));
   document.querySelectorAll('#rEdit [data-rx]').forEach(b=>b.addEventListener('click',()=>{
@@ -2274,7 +2287,7 @@ function toggleSkipAll(){
     if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
     list.forEach(x=>{
       const d=draft[x.id];if(!d)return;
-      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSec=0;
+      d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSecs=d.swSecs.map(()=>0);
       d.sub=d.sub.map(()=>'');d.off=[];
     });
   }
