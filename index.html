@@ -1062,7 +1062,11 @@ function stopStopwatch(){
 function toggleStopwatch(id,set){
   if(isLocked(cur))return;
   if(swRunning&&swRunning.id===id&&swRunning.set===set){
-    stopStopwatch();renderRoutine();renderTime();renderSession();return;
+    const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
+    stopStopwatch();
+    renderTime();
+    startRest(id,set,ex?ex.rest:0);   // 직접 눌러 끝내도 휴식이 자동으로 시작된다 (종은 울리지 않음)
+    return;
   }
   if(swRunning)stopStopwatch();     // 다른 세트의 스탑워치가 돌고 있으면 먼저 확정
   if(running)stopTimer();           // 세트 타이머와 동시에 돌면 시간이 겹쳐 집계되므로 먼저 멈춘다
@@ -1079,11 +1083,13 @@ function toggleStopwatch(id,set){
     const el=document.querySelector(`[data-swval="${id}-${set}"]`);
     const elapsed=liveSw(id,set);
     if(el)el.textContent=clock(elapsed);
-    /* 목표 시간에 닿는 순간 휴식 종료와 같은 종소리를 한 번만 울린다 */
+    /* 목표 시간에 닿으면 세트를 끝낸 것처럼 종을 울리고 자동으로 휴식을 시작한다 */
     if(swRunning&&swRunning.target>0&&!swRunning.rung&&elapsed>=swRunning.target){
-      swRunning.rung=true;ringTwice();
-      const box=document.querySelector(`[data-stopwatch="${id}"][data-swset="${set}"]`);
-      if(box)box.classList.add('reached');
+      ringTwice();
+      stopStopwatch();
+      renderTime();
+      startRest(id,set,ex?ex.rest:0);
+      return;
     }
     renderExTimeLive(id);
     renderTime();renderSession();
