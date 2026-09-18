@@ -63,6 +63,10 @@ header{
   color:var(--dim);font-size:15px;cursor:pointer;box-shadow:var(--shadow);
 }
 .navBtn:active{background:var(--panel2)}
+.navBtn.today{
+  width:auto;padding:0 10px;font-family:var(--sans);font-size:12px;font-weight:700;
+  color:var(--amber-ink);background:var(--amber-soft);border-color:#F0D89A;
+}
 input[type=date]{
   flex:1;min-width:0;height:38px;
   font-family:var(--mono);font-size:14px;
@@ -608,6 +612,7 @@ body.locked .ex{opacity:.92}
       <button class="navBtn" id="prevD" aria-label="이전 날짜">‹</button>
       <input type="date" id="date">
       <button class="navBtn" id="nextD" aria-label="다음 날짜">›</button>
+      <button class="navBtn today" id="todayBtn" title="오늘로 돌아가기" style="display:none">오늘</button>
       <button class="daytag" id="daytag" title="운동일 / 휴식일 전환">—</button>
     </div>
     <nav>
@@ -1069,7 +1074,7 @@ function toggleStopwatch(id,set){
   }
   if(swRunning)stopStopwatch();     // 다른 세트의 스탑워치가 돌고 있으면 먼저 확정
   if(running)stopTimer();           // 세트 타이머와 동시에 돌면 시간이 겹쳐 집계되므로 먼저 멈춘다
-  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+  if(rest)clearRestSilently();
   const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
   const target=ex&&num(ex.swTarget)>0?num(ex.swTarget):0;
   /* 이전에 이미 목표 시간을 넘겨 놓은 세트를 다시 시작하면, 시작하자마자 또 울리지 않게
@@ -1143,9 +1148,13 @@ async function delShot(exId,i){
 }
 
 /* ══════════ 운동 ══════════ */
-/* 같은 운동의 가장 최근 메모를 찾는다 */
+/* 어떤 운동에서 마지막으로 메모를 지운 날짜 — 이 날짜까지의 메모는 이후 어떤 날을 열어도 이어받지 않는다 */
+let noteCutoffs=ls.get('tl_notecutoffs',{});
+
+/* 같은 운동의 가장 최근 메모를 찾는다. 지운 기준일 이전 것은 건너뛴다. */
 function prevNote(id){
-  const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
+  const cutoff=noteCutoffs[id];
+  const dates=Object.keys(logs).filter(d=>d<cur&&(!cutoff||d>cutoff)).sort().reverse();
   for(const d of dates){
     const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
     if(e&&e.note&&e.note.trim())return{note:e.note,d};
@@ -1154,27 +1163,31 @@ function prevNote(id){
 }
 
 /* 방금 지운 메모 하나만 기억해서 되돌릴 수 있게 한다 (세션 동안만 유지) */
-let noteUndo=null;   // {id, day, sourceDate, oldNote}
+let noteUndo=null;   // {id, day, sourceDate, oldNote, oldCutoff}
 
-/* 메모를 완전히 지운다 — 이어받은 메모라면 그 원본이 저장된 날짜의 기록까지 비워서
-   이후 어떤 날을 열어도 다시 나타나지 않게 한다. 되돌리기 한 건은 기억해 둔다. */
+/* 메모를 완전히 지운다. 이어받은 메모라면 그 원본이 저장된 날짜의 기록까지 비우고,
+   오늘 날짜를 '기준일'로 남겨서 그 이전 메모는 앞으로 어떤 날을 열어도 다시 떠오르지 않게 한다. */
 function deleteNote(id){
   const d=draft[id];if(!d||!d.note||!d.note.trim())return;
   const sourceDate=d.carried||cur;
   const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===id);
   const oldNote=entry?entry.note:d.note;
+  const oldCutoff=noteCutoffs[id]||null;
 
-  noteUndo={id,day:cur,sourceDate,oldNote};
+  noteUndo={id,day:cur,sourceDate,oldNote,oldCutoff};
   if(entry){entry.note='';ls.set(K.lg,logs)}
+  if(!oldCutoff||cur>oldCutoff){noteCutoffs[id]=cur;ls.set('tl_notecutoffs',noteCutoffs)}
   d.note='';d.carried=null;
   saveLog(true);renderRoutine();
 }
-/* 방금 지운 메모를 되살린다 */
+/* 방금 지운 메모를 되살린다 — 기준일도 지우기 전 상태로 되돌린다 */
 function undoNote(){
   if(!noteUndo||noteUndo.day!==cur){noteUndo=null;renderRoutine();return}
-  const{id,sourceDate,oldNote}=noteUndo;
+  const{id,sourceDate,oldNote,oldCutoff}=noteUndo;
   const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===id);
   if(entry){entry.note=oldNote;ls.set(K.lg,logs)}
+  if(oldCutoff)noteCutoffs[id]=oldCutoff;else delete noteCutoffs[id];
+  ls.set('tl_notecutoffs',noteCutoffs);
   if(draft[id]){
     draft[id].note=oldNote;
     draft[id].carried=sourceDate===cur?null:sourceDate;
@@ -1532,7 +1545,7 @@ function renderRoutine(){
     if(!rest)return;
     rest.endsAt+=(+b.dataset.restadd)*1000;
     rest.len+=(+b.dataset.restadd);
-    rest.rung=false;renderRestBox();
+    rest.rung=false;ls.set('tl_rest',rest);renderRestBox();
   }));
   host.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{
     pickTarget=b.dataset.cam;
@@ -1564,7 +1577,7 @@ function toggleSession(){
   }else if(!s.end){
     if(running)stopTimer();          // 돌던 세트를 확정하고 종료
     if(swRunning)stopStopwatch();
-    if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+    if(rest)clearRestSilently();
     s.end=Date.now();
   }else{
     if(!confirm('세션을 다시 시작하면 기존 전체 시간이 지워집니다.'))return;
@@ -1656,19 +1669,31 @@ function restBoxHtml(){
 function startRest(id,set,len){
   if(!len||len<=0)return;
   rest={id,set,endsAt:Date.now()+len*1000,len,rung:false};
+  ls.set('tl_rest',rest);
+  armRestTick();
+  renderRoutine();
+}
+function stopRest(){
+  clearRestSilently();
+  renderRoutine();
+}
+/* stopRest()와 동작은 같지만 화면을 다시 그리지 않는다 — 다른 동작(세트 시작 등)을
+   처리하는 도중에 휴식만 조용히 끝내고, render는 그 동작 쪽에서 한 번에 하기 위해서다. */
+function clearRestSilently(){
+  rest=null;
+  localStorage.removeItem('tl_rest');
+  if(restTick){clearInterval(restTick);restTick=null}
+}
+/* 휴식 카운트다운의 실행 루프. 화면을 끄거나 앱이 뒤로 밀려 인터벌이 늦게 돌아도
+   실제 남은 시간은 항상 벽시계 기준(endsAt)으로 계산하므로, 다시 켜진 순간 정확히 맞는다. */
+function armRestTick(){
   if(restTick)clearInterval(restTick);
   restTick=setInterval(()=>{
     if(!rest){clearInterval(restTick);restTick=null;return}
     const left=(rest.endsAt-Date.now())/1000;
-    if(left<=0&&!rest.rung){rest.rung=true;ringTwice()}
+    if(left<=0&&!rest.rung){rest.rung=true;ls.set('tl_rest',rest);ringTwice()}
     renderRestBox();
   },250);
-  renderRoutine();
-}
-function stopRest(){
-  rest=null;
-  if(restTick){clearInterval(restTick);restTick=null}
-  renderRoutine();
 }
 /* 카운트다운 숫자만 갱신 — 전체를 다시 그리면 입력 중 커서가 튄다 */
 function renderRestBox(){
@@ -1725,7 +1750,7 @@ function toggleTimer(id,set){
   }
   if(running)stopTimer();          // 다른 세트가 돌고 있으면 먼저 확정
   if(swRunning)stopStopwatch();    // 운동 스탑워치와 겹치지 않게 먼저 멈춘다
-  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+  if(rest)clearRestSilently();
   running={id,set,startedAt:Date.now()};
   unlockAudio();                    // 첫 탭에서 소리 권한만 조용히 열어둔다
   if(tick)clearInterval(tick);
@@ -2289,7 +2314,7 @@ function toggleSkipAll(){
     if(!hasData&&!confirm('오늘 운동을 전부 건너뛸까요?'))return;
     if(running){running=null;if(tick){clearInterval(tick);tick=null}}
     if(swRunning){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
-    if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+    if(rest)clearRestSilently();
     list.forEach(x=>{
       const d=draft[x.id];if(!d)return;
       d.skip=true;d.v=d.v.map(()=>'');d.secs=d.secs.map(()=>0);d.swSecs=d.swSecs.map(()=>0);
@@ -2315,6 +2340,7 @@ async function refreshTrain(){
   const t=document.getElementById('daytag');
   t.textContent=DAYS[dow(cur)]+'·'+(isWorkout(cur)?'운동':'휴식');
   t.className='daytag'+(isWorkout(cur)?' on':'')+(isOverridden(cur)?' edited':'');
+  document.getElementById('todayBtn').style.display=cur===todayStr()?'none':'';
 }
 
 /* 그날만 운동일 ↔ 휴식일을 바꾼다. 요일 설정은 건드리지 않는다. */
@@ -2329,7 +2355,7 @@ async function toggleDayType(){
   }
   if(running){running=null;if(tick){clearInterval(tick);tick=null}}
   if(swRunning){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
-  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}
+  if(rest)clearRestSilently();
 
   const base=wdays.includes(dow(cur));
   if(!now===base)delete dayType[cur];   // 기본값으로 돌아오면 예외를 지운다
@@ -2340,7 +2366,7 @@ async function toggleDayType(){
 async function goDate(s){
   if(running)stopTimer();
   if(swRunning)stopStopwatch();
-  if(rest){rest=null;if(restTick){clearInterval(restTick);restTick=null}}          // 날짜를 옮기기 전에 시간을 확정 저장
+  /* 휴식 타이머는 날짜를 옮겨도 끊기지 않는다 — 실제 쉬는 시간은 화면과 무관하게 흐르므로 */
   if(typeof ahClose==='function')ahClose();
   cur=s;document.getElementById('date').value=cur;
   await refreshTrain();renderMeals();renderNutrients();renderWeight();
@@ -2348,7 +2374,17 @@ async function goDate(s){
 /* 앱을 내리거나 화면이 가려져도 시간이 유실되지 않게 한다 */
 window.addEventListener('pagehide',()=>{if(running)stopTimer();if(swRunning)stopStopwatch()});
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='hidden'&&running)saveLog(true);
+  if(document.visibilityState==='hidden'){
+    if(running)saveLog(true);
+  }else{
+    /* 화면이 꺼져있던 동안 인터벌이 멈췄을 수 있으니, 돌아오는 즉시 휴식 종료 여부를 다시 확인한다 */
+    if(rest){
+      const left=(rest.endsAt-Date.now())/1000;
+      if(left<=0&&!rest.rung){rest.rung=true;ls.set('tl_rest',rest);ringTwice()}
+      if(!restTick)armRestTick();
+      renderRestBox();
+    }
+  }
 });
 
 /* ══════════ 이벤트 ══════════ */
@@ -2367,6 +2403,7 @@ document.querySelectorAll('.toggle button').forEach(b=>b.addEventListener('click
 document.getElementById('date').addEventListener('change',e=>goDate(e.target.value||todayStr()));
 document.getElementById('prevD').addEventListener('click',()=>goDate(shift(cur,-1)));
 document.getElementById('nextD').addEventListener('click',()=>goDate(shift(cur,1)));
+document.getElementById('todayBtn').addEventListener('click',()=>goDate(todayStr()));
 document.getElementById('save').addEventListener('click',()=>saveLog(false));
 document.getElementById('clearDay').addEventListener('click',clearDay);
 document.getElementById('skipAll').addEventListener('click',toggleSkipAll);
@@ -2486,7 +2523,7 @@ document.getElementById('addFood').addEventListener('click',()=>{
 });
 document.getElementById('exp').addEventListener('click',async()=>{
   const photos=await IDB.all();
-  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,locked,photos});
+  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,locked,noteCutoffs,photos});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
   a.download='nagis-training-log_'+todayStr()+'.json';a.click();
@@ -2507,6 +2544,7 @@ document.getElementById('imp').addEventListener('click',()=>{
         if(d.weights){weights=d.weights;ls.set('tl_weights',weights)}
         if(d.sessions){sessions=d.sessions;ls.set('tl_sessions',sessions)}
         if(d.dayType){dayType=d.dayType;ls.set('tl_daytype',dayType)}
+        if(d.noteCutoffs){noteCutoffs=d.noteCutoffs;ls.set('tl_notecutoffs',noteCutoffs)}
         if(d.locked){locked=d.locked;ls.set('tl_locked',locked)}
         if(d.photos){for(const k of Object.keys(d.photos))await IDB.set(k,d.photos[k])}
         ls.set('tl_migrated',true);boot();alert('불러왔습니다.');
@@ -2524,7 +2562,8 @@ document.getElementById('wipeLogs').addEventListener('click',async()=>{
 document.getElementById('wipe').addEventListener('click',async()=>{
   if(!confirm('모든 기록이 지워집니다. 계속할까요?'))return;
   Object.values(K).forEach(k=>localStorage.removeItem(k));
-  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');localStorage.removeItem('tl_locked');await IDB.clear();
+  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');localStorage.removeItem('tl_locked');localStorage.removeItem('tl_notecutoffs');await IDB.clear();
+  noteCutoffs={};
   weights={};sessions={};dayType={};locked={};
   routines=JSON.parse(JSON.stringify(DEF_ROUTINE));logs={};
   foods=JSON.parse(JSON.stringify(DEF_FOODS));meals={};
@@ -2536,8 +2575,19 @@ document.getElementById('wipe').addEventListener('click',async()=>{
 function boot(){
   document.getElementById('date').value=cur;
   document.getElementById('basis').value=basis;
+  restoreRest();
   refreshTrain();renderSlotPick();renderChips();renderMeals();renderNutrients();renderWeight();
   renderDayPick();renderREdit();renderFEdit();renderTEdit();updateUsage();
+}
+/* 앱이 완전히 꺼졌다 다시 열려도(예: 화면을 오래 꺼둬서 브라우저가 페이지를 내린 경우)
+   벽시계 기준으로 남은 휴식 시간을 그대로 이어서 보여준다. 이미 끝나 있었다면 그 자리에서 바로 울린다. */
+function restoreRest(){
+  const saved=ls.get('tl_rest',null);
+  if(!saved||!saved.endsAt)return;
+  rest=saved;
+  const left=(rest.endsAt-Date.now())/1000;
+  if(left<=0&&!rest.rung){rest.rung=true;ls.set('tl_rest',rest);ringTwice()}
+  armRestTick();
 }
 boot();
 
