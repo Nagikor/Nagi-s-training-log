@@ -2105,12 +2105,15 @@ function makeSortable(container,rowSel,handleSel,onDrop){
 
       const rows=Array.from(container.querySelectorAll(rowSel));
       const order=rows.map((_,i)=>i);            // 지금 화면 위치 → 원래 인덱스
-      let startY=e.clientY,offsetY=0;
+      let startY=e.clientY,lastY=e.clientY,scrollRAF=null;
       row.classList.add('dragging');
       try{handle.setPointerCapture(e.pointerId)}catch(err){}
 
-      const onMove=ev=>{
-        offsetY=ev.clientY-startY;
+      /* 손가락 위치는 그대로 두고 화면만 넘어가는 경우(자동 스크롤 중)에도
+         박스가 손가락에 붙어있도록, transform 계산과 이웃 교체 판정을 한 곳에 모아서
+         pointermove 뿐 아니라 스크롤 프레임에서도 똑같이 쓴다. */
+      const applyMove=()=>{
+        const offsetY=lastY-startY;
         row.style.transform=`translateY(${offsetY}px)`;
         const curIdx=rows.indexOf(row);
         const dir=offsetY>0?1:-1;
@@ -2126,13 +2129,34 @@ function makeSortable(container,rowSel,handleSel,onDrop){
           if(dir>0)container.insertBefore(nb,row);else container.insertBefore(row,nb);
           [rows[curIdx],rows[nbIdx]]=[rows[nbIdx],rows[curIdx]];
           [order[curIdx],order[nbIdx]]=[order[nbIdx],order[curIdx]];
-          startY=ev.clientY;offsetY=0;
+          startY=lastY;
           row.style.transform='translateY(0px)';
         }
       };
+
+      /* 손가락이 화면 위/아래 가장자리 가까이 가면 손을 더 움직이지 않아도
+         계속 스크롤되게 한다 — 전체 화면을 따로 끌어올릴 필요가 없어진다. */
+      const EDGE=70,MAXSPEED=16;
+      const scrollLoop=()=>{
+        const h=window.innerHeight;
+        let dy=0;
+        if(lastY<EDGE)dy=-MAXSPEED*(1-lastY/EDGE);
+        else if(lastY>h-EDGE)dy=MAXSPEED*(1-(h-lastY)/EDGE);
+        if(dy){
+          const before=window.scrollY;
+          window.scrollBy(0,dy);
+          const scrolled=window.scrollY-before;   // 문서 끝에 닿으면 실제 스크롤량이 더 작다
+          if(scrolled){startY-=scrolled;applyMove()}
+        }
+        scrollRAF=requestAnimationFrame(scrollLoop);
+      };
+      scrollRAF=requestAnimationFrame(scrollLoop);
+
+      const onMove=ev=>{lastY=ev.clientY;applyMove()};
       const onUp=()=>{
         window.removeEventListener('pointermove',onMove);
         window.removeEventListener('pointerup',onUp);
+        if(scrollRAF)cancelAnimationFrame(scrollRAF);
         row.classList.remove('dragging');
         row.style.transform='';
         onDrop(order);
