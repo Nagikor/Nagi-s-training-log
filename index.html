@@ -546,13 +546,16 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 .srchRow input:focus{outline:0;border-color:var(--amber)}
 .srchSum{padding:0 14px 8px;font-size:11.5px;color:var(--dim);line-height:1.6}
 .srchSum b{color:var(--ink)}
-.srchDay{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 14px;border:0;border-top:1px solid var(--line-soft);background:transparent;cursor:pointer;font-family:var(--sans);color:var(--ink)}
-.srchDay:active{background:var(--panel2)}
-.srchDate{flex:0 0 74px;font-family:var(--mono);font-size:12px;font-weight:700}
+.srchDay{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-top:1px solid var(--line-soft)}
+.srchDate{flex:0 0 74px;font-family:var(--mono);font-size:12px;font-weight:700;text-align:left;background:transparent;border:0;padding:2px 0;cursor:pointer;color:var(--ink)}
+.srchDate:active{opacity:.6}
 .srchDate em{display:block;font-style:normal;font-size:10.5px;font-weight:400;color:var(--dimmer)}
-.srchItems{flex:1;min-width:0;font-size:12.5px;line-height:1.6}
-.srchItems i{display:block;font-style:normal;font-size:11px;color:var(--dim)}
-.srchGo{color:var(--dimmer);font-size:14px}
+.srchItems{flex:1;min-width:0}
+.srchItem{display:flex;align-items:center;gap:8px;padding:3px 0;font-size:12.5px;line-height:1.6}
+.srchItem>span{flex:1;min-width:0}
+.srchItem i{display:block;font-style:normal;font-size:11px;color:var(--dim)}
+.srchAdd{flex:0 0 auto;font-size:11px;font-weight:700;font-family:var(--sans);padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--amber-ink);cursor:pointer;white-space:nowrap}
+.srchAdd:active{background:var(--panel2)}
 .empty{padding:26px 16px;text-align:center;color:var(--dimmer);font-size:13px;line-height:1.7}
 .hint{padding:10px 14px 14px;font-size:11.5px;color:var(--dimmer);line-height:1.65}
 .view{display:none}.view.on{display:block}
@@ -2079,9 +2082,9 @@ function renderSearch(){
   const hits=[];
   Object.keys(meals).sort().reverse().forEach(d=>{
     const items=[];
-    (meals[d]||[]).forEach(m=>{
+    (meals[d]||[]).forEach((m,i)=>{
       const f=mealFood(m);
-      if(f&&normQ(f.n).includes(q))items.push({f,m});
+      if(f&&normQ(f.n).includes(q))items.push({f,m,i});
     });
     if(items.length)hits.push({d,items});
   });
@@ -2095,19 +2098,31 @@ function renderSearch(){
 
   out.innerHTML=`<div class="srchSum"><b>${hits.length}일</b> · 총 ${total}회 · 가장 최근 <b>${last.slice(5).replace('-','/')}</b> (${agoTxt})</div>`+
     hits.map(h=>{
-      const rows=h.items.map(({f,m})=>
-        `<div>${esc(f.n)}${m.q!==1?` ×${m.q}`:''} <span style="color:var(--dimmer)">${slotLab(m.slot)}</span>
-          <i>${fmt(f.kcal*m.q)}kcal · 단백질 ${fmt(f.p*m.q)}g</i></div>`).join('');
-      return `<button class="srchDay" data-d="${h.d}">
-        <span class="srchDate">${h.d.slice(5).replace('-','/')}<em>${h.d.slice(0,4)} · ${DAYS[dow(h.d)]}</em></span>
-        <span class="srchItems">${rows}</span><span class="srchGo">›</span></button>`;
+      const rows=h.items.map(({f,m,i})=>
+        `<div class="srchItem"><span>${esc(f.n)}${m.q!==1?` ×${m.q}`:''} <span style="color:var(--dimmer)">${slotLab(m.slot)}</span>
+          <i>${fmt(f.kcal*m.q)}kcal · 단백질 ${fmt(f.p*m.q)}g</i></span>
+          <button class="srchAdd" data-d="${h.d}" data-i="${i}">＋ 오늘</button></div>`).join('');
+      return `<div class="srchDay">
+        <button class="srchDate" data-d="${h.d}">${h.d.slice(5).replace('-','/')}<em>${h.d.slice(0,4)} · ${DAYS[dow(h.d)]}</em></button>
+        <div class="srchItems">${rows}</div></div>`;
     }).join('');
 
   /* 날짜를 누르면 그날의 식단으로 이동 */
-  out.querySelectorAll('.srchDay').forEach(b=>b.addEventListener('click',async()=>{
+  out.querySelectorAll('.srchDate').forEach(b=>b.addEventListener('click',async()=>{
     await goDate(b.dataset.d);
     const t=document.getElementById('meals');
     if(t)t.scrollIntoView({behavior:'smooth',block:'start'});
+  }));
+  /* ＋ 오늘 — 그때의 끼니·배수 그대로 오늘 식단에 복사한다. 직접 입력한 음식은 영양성분까지 함께 복사된다. */
+  out.querySelectorAll('.srchAdd').forEach(b=>b.addEventListener('click',()=>{
+    const src=(meals[b.dataset.d]||[])[+b.dataset.i];
+    if(!src||!mealFood(src))return;
+    const t=todayStr();
+    const copy=src.ad?{ad:{...src.ad},q:src.q,slot:src.slot}:{id:src.id,q:src.q,slot:src.slot};
+    (meals[t]||(meals[t]=[])).push(copy);
+    ls.set(K.ml,meals);
+    renderMeals();renderNutrients();
+    flash(`오늘(${t.slice(5).replace('-','/')}) ${slotLab(src.slot)}에 추가`);
   }));
 }
 document.getElementById('srchIn').addEventListener('input',renderSearch);
