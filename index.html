@@ -276,6 +276,16 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   letter-spacing:.08em;padding:2px 7px;border-radius:20px;
   background:#EDE7FA;color:#5B3FA8;margin-left:6px;vertical-align:middle;
 }
+/* 기록 방식 전환 · 세트 추가 */
+.mvCtl{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+.typeTog{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+.typeTog button{padding:4px 10px;font-size:11px;font-weight:700;font-family:var(--sans);background:transparent;color:var(--dimmer);border:0;border-radius:6px;cursor:pointer}
+.typeTog button.on{background:var(--panel2);color:var(--ink)}
+.typeTog.alt button.on{background:#FFF3D6;color:var(--amber-ink)}
+.setCtl{display:flex;gap:6px;margin-left:auto}
+.setCtl button{padding:5px 10px;font-size:11px;font-weight:700;font-family:var(--sans);background:var(--panel);color:var(--dim);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+.setCtl button:active{background:var(--panel2)}
+.setCtl .add{color:var(--amber-ink)}
 .mv{padding:10px 0 0;border-top:1px dashed var(--line);margin-top:10px}
 .mv:first-of-type{border-top:0;margin-top:0;padding-top:0}
 .mvTop{display:flex;align-items:center;gap:8px;margin-bottom:7px}
@@ -585,7 +595,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 body.locked .ex input,body.locked .ex textarea,body.locked .ex select{
   pointer-events:none;background:var(--panel2);color:var(--dim);
 }
-body.locked .setDrop,body.locked .skipBtn,body.locked .camBtn,
+body.locked .setDrop,body.locked .skipBtn,body.locked .camBtn,body.locked .typeTog button,body.locked .setCtl button,
 body.locked .stBtn,body.locked .tReset,body.locked .shot button,
 body.locked #sessBtn,body.locked #clearDay,body.locked [data-noteclear]{
   pointer-events:none;opacity:.45;
@@ -1261,27 +1271,35 @@ function loadDraft(){
       const pn=prevNote(ex.id);
       if(pn){note=pn.note;carried=pn.d}
     }
+    /* 그날 세트 수는 저장된 기록이 더 길면 그쪽을 따른다 (추가한 세트 유지) */
+    const n=Math.max(ex.sets,hit&&hit.v?hit.v.length:0,hit&&hit.secs?hit.secs.length:0,hit&&hit.sub?hit.sub.length:0);
     draft[ex.id]={
-      v:hit?hit.v.slice():new Array(ex.sets).fill(''),
+      v:hit?hit.v.slice():new Array(n).fill(''),
       note,
       carried,
       n:hit&&hit.n?hit.n:ex.n,
-      secs:hit&&hit.secs?hit.secs.slice():new Array(ex.sets).fill(0),
-      swSecs:hit&&Array.isArray(hit.sw)?hit.sw.slice():new Array(ex.sets).fill(0),
-      sub:hit&&hit.sub?hit.sub.slice():new Array(ex.sets).fill(''),
+      t:hit&&hit.t?hit.t:ex.t,          // 그날의 기록 방식 (횟수/홀드). 루틴 원본은 그대로.
+      secs:hit&&hit.secs?hit.secs.slice():new Array(n).fill(0),
+      swSecs:hit&&Array.isArray(hit.sw)?hit.sw.slice():new Array(n).fill(0),
+      sub:hit&&hit.sub?hit.sub.slice():new Array(n).fill(''),
       skip:!!(hit&&hit.skip),
       off:hit&&hit.off?hit.off.slice():[]
     };
-    while(draft[ex.id].v.length<ex.sets)draft[ex.id].v.push('');
-    while(draft[ex.id].secs.length<ex.sets)draft[ex.id].secs.push(0);
-    while(draft[ex.id].swSecs.length<ex.sets)draft[ex.id].swSecs.push(0);
-    while(draft[ex.id].sub.length<ex.sets)draft[ex.id].sub.push('');
+    const dd=draft[ex.id];
+    while(dd.v.length<n)dd.v.push('');
+    while(dd.secs.length<n)dd.secs.push(0);
+    while(dd.swSecs.length<n)dd.swSecs.push(0);
+    while(dd.sub.length<n)dd.sub.push('');
   });
 }
-function prevTotal(id){
+/* 그날 이 운동의 세트 수 */
+function setsOf(ex){const d=draft[ex.id];return d&&d.v?Math.max(d.v.length,1):ex.sets}
+function prevTotal(id,type){
   const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
   for(const d of dates){
     const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
+    /* 횟수와 홀드는 단위가 달라 서로 비교하지 않는다 */
+    if(e&&type&&(e.t||'reps')!==type)continue;
     if(e){const t=e.v.reduce((a,b)=>a+num(b),0);if(t>0)return{t,d,n:e.n}}
   }
   return null;
@@ -1337,16 +1355,17 @@ function renderRoutine(){
       sec=lead.s;html+=`<div class="secLabel">${esc(sec)}</div><div class="panel">`;open=true;
     }
     const cmp=g.length>1;
-    const nSet=Math.max(...g.map(x=>x.sets));
+    const nSet=Math.max(...g.map(x=>setsOf(x)));
     const dl=draft[lead.id]||{v:[],note:'',n:lead.n,secs:[],off:[]};
     const gSkip=g.every(x=>(draft[x.id]||{}).skip);
 
     /* 동작별 블록 */
     const movs=g.map((ex,mi)=>{
       const d=draft[ex.id]||{v:[],note:'',n:ex.n,secs:[],off:[]};
-      const unit=ex.t==='hold'?'초':'회';
+      const et=d.t||ex.t;                           // 그날의 기록 방식
+      const unit=et==='hold'?'초':'회';
       const tot=d.v.reduce((a,b)=>a+num(b),0);
-      const pv=prevTotal(ex.id);
+      const pv=prevTotal(ex.id,et);
       let chip='<span class="chip new">첫 기록</span>';
       if(pv&&tot>0){
         const df=tot-pv.t,cls=df>0?'up':df<0?'down':'flat';
@@ -1357,7 +1376,8 @@ function renderRoutine(){
       let boxes='';
       const sub=ex.sub||'';                       // '' | 'kg' | 'best'
       let subBoxes='';
-      for(let i=0;i<ex.sets;i++){
+      const ns=setsOf(ex);
+      for(let i=0;i<ns;i++){
         const dropped=(d.off||[]).includes(i);
         boxes+=`<div class="setBox${dropped?' off':''}"><span class="setNo">${i+1}</span>
         <button class="setDrop${dropped?' on':''}" data-drop="${ex.id}" data-i="${i}" title="${dropped?'되살리기':'이 세트 건너뛰기'}">${dropped?'↺':'✕'}</button>
@@ -1371,15 +1391,24 @@ function renderRoutine(){
       const shotHtml=ph.length?`<div class="shots">${ph.map((src,i)=>
         `<div class="shot"><img src="${src}" data-zoom="${src}" alt="자세 사진"><button data-delshot="${ex.id}" data-i="${i}">✕</button></div>`).join('')}</div>`:'';
 
+      /* 기록 방식 전환(운동별) + 세트 추가/빼기(묶음 전체, 마지막 동작 아래에 한 번만) */
+      const isLast=mi===g.length-1;
+      const baseMax=Math.max(...g.map(x=>x.sets));
+      const canDel=isLast&&Math.max(...g.map(x=>setsOf(x)))>baseMax;
+      const ctlRow=`<div class="mvCtl">
+        <div class="typeTog${et!==ex.t?' alt':''}" title="오늘 이 운동의 기록 방식">
+          <button data-type="${ex.id}" data-to="reps" class="${et==='reps'?'on':''}">횟수</button>
+          <button data-type="${ex.id}" data-to="hold" class="${et==='hold'?'on':''}">홀드</button></div>
+        ${isLast?`<div class="setCtl">${canDel?`<button data-delset="${lead.id}" title="추가한 세트 빼기">－</button>`:''}<button class="add" data-addset="${lead.id}">＋ 세트 추가</button></div>`:''}</div>`;
       const head=cmp
         ? `<div class="mvTop"><span class="mvNo">${String.fromCharCode(65+mi)}</span>
              <input class="mvName${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
-             <span class="exMeta">${ex.sets}×${unit}</span>
+             <span class="exMeta">${ns}×${unit}</span>
              <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}" style="width:26px;height:26px;font-size:12px">${d.skip?'↺':'⊘'}</button>
              <button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진" style="width:26px;height:26px;font-size:12px">◉</button></div>`
         : `<div class="exTop">
              <input class="exNameIn${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
-             <div class="exMeta">${ex.sets}세트 · ${ex.rest}초</div>
+             <div class="exMeta">${ns}세트 · ${ex.rest}초</div>
              <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}">${d.skip?'↺':'⊘'}</button>
              ${d.skip?'':`<button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진">◉</button>`}</div>`;
 
@@ -1389,6 +1418,7 @@ function renderRoutine(){
         ${subRow}
         <div class="mvFoot"><span class="total">합계 <b>${fmt(tot)}</b>${unit}</span>${chip}</div>
         ${subSummary(ex,d)}
+        ${ctlRow}
         ${shotHtml}</div>`;
     }).join('');
 
@@ -1463,11 +1493,12 @@ function renderRoutine(){
     draft[id].v[+e.target.dataset.i]=e.target.value;
     const card=e.target.closest('.mv')||e.target.closest('.ex');
     const ex=list.find(x=>x.id===id);
-    const unit=ex.t==='hold'?'초':'회';
+    const et=draft[id].t||ex.t;
+    const unit=et==='hold'?'초':'회';
     const tot=draft[id].v.reduce((a,b)=>a+num(b),0);
     const totEl=card.querySelector('.total');
     if(totEl)totEl.innerHTML=`합계 <b>${fmt(tot)}</b>${unit}`;
-    const pv=prevTotal(id),chipEl=card.querySelector('.chip');
+    const pv=prevTotal(id,et),chipEl=card.querySelector('.chip');
     if(pv&&tot>0&&chipEl){
       const df=tot-pv.t;
       chipEl.className='chip '+(df>0?'up':df<0?'down':'flat');
@@ -1538,6 +1569,45 @@ function renderRoutine(){
       if(swRunning&&swRunning.id===id){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
     }else d.skip=false;
     saveLog(true);renderRoutine();renderTime();renderSkipAll();
+  }));
+  /* 오늘만 이 운동의 기록 방식을 횟수 ↔ 홀드로 바꾼다. 루틴 원본(설정)은 그대로다. */
+  host.querySelectorAll('[data-type]').forEach(b=>b.addEventListener('click',()=>{
+    const id=b.dataset.type,d=draft[id];
+    if(!d||d.t===b.dataset.to)return;
+    d.t=b.dataset.to;
+    saveLog(true);renderRoutine();
+  }));
+  /* 세트 추가/빼기 — 컴파운드는 묶음 전체에 같이 적용해 타이머와 칸 수가 어긋나지 않게 한다 */
+  const grpOf=id=>{
+    const i=list.findIndex(x=>x.id===id);let a=i;
+    while(a>0&&list[a].link)a--;
+    const out=[list[a]];let k=a+1;
+    while(k<list.length&&list[k].link){out.push(list[k]);k++}
+    return out;
+  };
+  host.querySelectorAll('[data-addset]').forEach(b=>b.addEventListener('click',()=>{
+    grpOf(b.dataset.addset).forEach(ex=>{
+      const d=draft[ex.id];if(!d)return;
+      d.v.push('');d.secs.push(0);d.swSecs.push(0);d.sub.push('');
+    });
+    saveLog(true);renderRoutine();
+  }));
+  host.querySelectorAll('[data-delset]').forEach(b=>b.addEventListener('click',()=>{
+    const grp=grpOf(b.dataset.delset);
+    const base=Math.max(...grp.map(x=>x.sets));
+    const cur_n=Math.max(...grp.map(x=>setsOf(x)));
+    if(cur_n<=base)return;
+    const last=cur_n-1;
+    const filled=grp.some(ex=>{const d=draft[ex.id];return d&&(String(d.v[last]??'').trim()!==''||(d.secs[last]||0)>0||(d.swSecs[last]||0)>0||String(d.sub[last]??'').trim()!=='')});
+    if(filled&&!confirm(`${cur_n}세트의 기록과 시간이 지워집니다. 빼도 될까요?`))return;
+    grp.forEach(ex=>{
+      const d=draft[ex.id];if(!d)return;
+      if(running&&running.id===ex.id&&running.set===last){running=null;if(tick){clearInterval(tick);tick=null}}
+      if(swRunning&&swRunning.id===ex.id&&swRunning.set===last){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
+      [d.v,d.secs,d.swSecs,d.sub].forEach(a=>a.length=last);
+      d.off=(d.off||[]).filter(i=>i<last);
+    });
+    saveLog(true);renderRoutine();renderTime();
   }));
   /* 세트 하나만 빼기 */
   host.querySelectorAll('[data-drop]').forEach(b=>b.addEventListener('click',()=>{
@@ -1852,7 +1922,7 @@ function updateStat(){
   list.forEach(ex=>{
     const d=draft[ex.id];if(!d)return;
     if(d.skip){skipped++;return}
-    for(let i=0;i<ex.sets;i++){
+    for(let i=0,n=setsOf(ex);i<n;i++){
       if((d.off||[]).includes(i))continue;
       total++;
       if(String(d.v[i]??'').trim()!=='')done++;
@@ -1885,9 +1955,9 @@ function saveLog(silent){
     /* 이어받기만 하고 손대지 않은 메모는 그 자체로 기록이 되지 않는다 */
     const ownNote=d.carried?'':d.note;
     if(d.skip){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:[],note:ownNote,secs:[],sw:[],sub:[],skip:true,off:[]});
+      ex.push({id:x.id,n:d.n||x.n,t:d.t||x.t,v:[],note:ownNote,secs:[],sw:[],sub:[],skip:true,off:[]});
     }else if(d.v.some(v=>String(v).trim()!=='')||ownNote.trim()!==''||hasTime||off.length||hasSub){
-      ex.push({id:x.id,n:d.n||x.n,t:x.t,v:d.v.slice(),note:d.note,secs,sw:swSecs,sub:subv,off});
+      ex.push({id:x.id,n:d.n||x.n,t:d.t||x.t,v:d.v.slice(),note:d.note,secs,sw:swSecs,sub:subv,off});
     }
   });
   if(ex.length)logs[cur]={ex};else delete logs[cur];
