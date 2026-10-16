@@ -159,6 +159,7 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
 .chip.down{color:var(--down);background:var(--down-soft)}
 .chip.flat{color:var(--dim);background:var(--panel2)}
 .chip.new{color:var(--amber-ink);background:var(--amber-soft)}
+.chip.sub{font-weight:600;opacity:.9}
 .note{
   width:100%;margin-top:9px;padding:9px 10px;min-height:62px;
   font-family:var(--sans);font-size:13px;line-height:1.55;
@@ -276,6 +277,10 @@ nav button.on{color:var(--ink);border-bottom-color:var(--amber)}
   letter-spacing:.08em;padding:2px 7px;border-radius:20px;
   background:#EDE7FA;color:#5B3FA8;margin-left:6px;vertical-align:middle;
 }
+/* 운동 추가 패널 */
+.fchip.used{opacity:.5;border-style:dashed}
+.xReg{display:flex;align-items:center;gap:6px;padding:0 14px 8px;font-size:12px;color:var(--dim);cursor:pointer}
+#xAdhocForm .rCell select,#xAdhocForm .rCell input{width:100%}
 /* 기록 방식 전환 · 세트 추가 */
 .mvCtl{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
 .typeTog{display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
@@ -725,6 +730,27 @@ body.locked .ex{opacity:.92}
     </div>
 
     <div id="routine"></div>
+
+    <div class="panel" id="exAddPanel">
+      <div class="phead"><h2>운동 추가</h2>
+        <button class="linkBtn" id="xAdhocBtn" style="margin-left:auto">＋ 직접 입력</button>
+      </div>
+      <div class="foodChips" id="exChips"></div>
+      <div id="xAdhocForm" style="display:none">
+        <div class="foodHead"><input id="xN" placeholder="운동 이름 (예: 푸쉬업)"></div>
+        <div class="rGrid" style="padding:0 14px 10px">
+          <div class="rCell"><select id="xT"><option value="reps">횟수</option><option value="hold">홀드</option></select><label>기록 단위</label></div>
+          <div class="rCell"><input type="number" inputmode="numeric" id="xS" value="3"><label>세트</label></div>
+          <div class="rCell"><input type="number" inputmode="numeric" id="xR" value="60"><label>휴식(초)</label></div>
+        </div>
+        <label class="xReg"><input type="checkbox" id="xReg"> 자주 하는 운동에도 등록</label>
+        <div class="btnRow" style="padding-top:2px">
+          <button class="btn" id="xAdd">오늘 운동에 추가</button>
+          <button class="btn ghost" id="xCancel" style="flex:0 0 88px">취소</button>
+        </div>
+      </div>
+      <div class="hint">자주 하는 운동을 눌러 <b>오늘 목록에만</b> 추가합니다. 루틴 원본은 바뀌지 않고, 이름·기록 방식·세트 수는 카드에서 그날 바로 고칠 수 있습니다. 목록은 설정 → 루틴 편집 → <b>자주 하는 운동</b>에서 관리합니다.</div>
+    </div>
   </section>
 
   <section class="view" id="v-food">
@@ -810,12 +836,16 @@ body.locked .ex{opacity:.92}
     <div class="panel">
       <div class="phead"><h2>루틴 편집</h2>
         <select id="rSel" style="margin-left:auto;font-family:var(--sans);font-size:12px;padding:6px 8px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px">
-          <option value="workout">운동일</option><option value="rest">휴식일</option>
+          <option value="workout">운동일</option><option value="rest">휴식일</option><option value="lib">자주 하는 운동</option>
         </select>
       </div>
       <div id="rEdit"></div>
       <div class="btnRow"><button class="btn ghost" id="addEx">＋ 운동 추가</button></div>
-      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최대홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br><b>스탑워치(초)</b>에 시간을 넣으면 운동 화면에 세트마다 알람 버튼이 하나씩 더 생깁니다. 누르면 시작하고, 넣어둔 시간에 닿으면 휴식 종료와 같은 종이 두 번 울립니다. 0이나 빈 칸이면 나타나지 않습니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.</div>
+      <div class="btnRow" style="padding-top:0">
+        <button class="btn ghost" id="clearRt" style="color:var(--down);border-color:#EFC4C0"></button>
+        <button class="btn ghost" id="clearRtAll" style="color:var(--down);border-color:#EFC4C0">운동일·휴식일 모두 지우기</button>
+      </div>
+      <div class="hint">유형이 <b>홀드</b>면 초 단위, <b>횟수</b>면 회 단위로 기록되고 볼륨도 따로 합산됩니다.<br><b>위와 묶기</b>를 켜면 앞 운동과 한 세트로 묶여 <b>컴파운드 세트</b>가 됩니다. 묶인 동작들은 각자 유형(횟수·홀드)을 그대로 쓰고, 세트 타이머는 묶음 하나로 돕니다.<br><b>추가 기록</b>을 <b>무게</b>로 두면 세트마다 kg을, <b>최대홀드</b>로 두면 그 세트에서 가장 오래 버틴 초를 함께 적을 수 있습니다. 최고값과 지난 기록 대비 증감이 자동으로 표시됩니다.<br><b>스탑워치(초)</b>에 시간을 넣으면 운동 화면에 세트마다 알람 버튼이 하나씩 더 생깁니다. 누르면 시작하고, 넣어둔 시간에 닿으면 휴식 종료와 같은 종이 두 번 울립니다. 0이나 빈 칸이면 나타나지 않습니다.<br>여기서 이름을 바꿔도 지난 기록의 이름은 그대로 남습니다.<br>지난 기록 비교와 메모 이어받기는 <b>이름이 같은 운동끼리</b> 이어집니다(띄어쓰기·대소문자 무시). <b>전부 지우기</b>를 눌러도 이미 저장된 기록은 남습니다.<br><b>자주 하는 운동</b>은 운동 화면 맨 아래 "운동 추가"에 칩으로 나타납니다. 눌러서 그날 목록에만 추가하며, 여기서 고치거나 지워도 이미 추가한 날의 운동은 그대로입니다.</div>
     </div>
 
     <div class="panel">
@@ -935,6 +965,25 @@ const uid=()=>'x'+Math.random().toString(36).slice(2,9);
 /* ══════════ 상태 ══════════ */
 let routines=ls.get(K.rt,DEF_ROUTINE);
 let logs=ls.get(K.lg,{});
+/* 그날만 목록에 얹은 운동 {날짜:[운동 정의...]} — 루틴 원본은 건드리지 않는다 */
+let extras=ls.get('tl_extras',{});
+/* 오늘 화면에 보이는 운동 = 요일 루틴 + 그날 추가한 운동 (같은 id 는 루틴이 우선) */
+function todayList(){
+  const base=isWorkout(cur)?routines.workout:routines.rest;
+  const add=(extras[cur]||[]).filter(e=>!base.some(b=>b.id===e.id));
+  return add.length?base.concat(add):base;
+}
+/* 자주 하는 운동(routines.lib)이 없으면 지금 루틴의 운동들로 처음 채운다. id 를 그대로 써서 지난 기록 비교가 이어진다. */
+function ensureLib(){
+  if(Array.isArray(routines.lib))return;
+  const seen=new Set(),out=[];
+  ['workout','rest'].forEach(k=>(routines[k]||[]).forEach(ex=>{
+    const nm=normN(ex.n);
+    if(!nm||seen.has(nm))return;seen.add(nm);
+    out.push({id:ex.id,s:'오늘 추가',n:ex.n,t:ex.t,sub:ex.sub||'',sets:ex.sets,rest:ex.rest,swTarget:ex.swTarget||0,link:false});
+  }));
+  routines.lib=out;ls.set(K.rt,routines);
+}
 let foods=ls.get(K.fd,DEF_FOODS);
 let meals=ls.get(K.ml,{});
 let targets=ls.get(K.tg,DEF_TARGETS);
@@ -1105,7 +1154,7 @@ function stopStopwatch(){
 function toggleStopwatch(id,set){
   if(isLocked(cur))return;
   if(swRunning&&swRunning.id===id&&swRunning.set===set){
-    const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
+    const ex=todayList().find(x=>x.id===id);
     stopStopwatch();
     renderTime();
     startRest(id,set,ex?ex.rest:0);   // 직접 눌러 끝내도 휴식이 자동으로 시작된다 (종은 울리지 않음)
@@ -1114,7 +1163,7 @@ function toggleStopwatch(id,set){
   if(swRunning)stopStopwatch();     // 다른 세트의 스탑워치가 돌고 있으면 먼저 확정
   if(running)stopTimer();           // 세트 타이머와 동시에 돌면 시간이 겹쳐 집계되므로 먼저 멈춘다
   if(rest)clearRestSilently();
-  const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
+  const ex=todayList().find(x=>x.id===id);
   const target=ex&&num(ex.swTarget)>0?num(ex.swTarget):0;
   /* 이전에 이미 목표 시간을 넘겨 놓은 세트를 다시 시작하면, 시작하자마자 또 울리지 않게
      '이미 울린 것'으로 놓고 시작한다 — 이번 구간에서 새로 목표를 넘길 때만 울린다. */
@@ -1191,12 +1240,35 @@ async function delShot(exId,i){
 let noteCutoffs=ls.get('tl_notecutoffs',{});
 
 /* 같은 운동의 가장 최근 메모를 찾는다. 지운 기준일 이전 것은 건너뛴다. */
-function prevNote(id){
-  const cutoff=noteCutoffs[id];
+/* 메모는 같은 운동(id 가 같거나 이름이 같은 운동)의 가장 최근 메모를 이어받는다.
+   '지운 기준일'(noteCutoffs)도 id 와 이름 둘 다에 걸어서, 한쪽에서 지운 메모가 다른 쪽에서 되살아나지 않게 한다. */
+function noteNames(id,name){
+  if(name!==undefined)return new Set([normN(name)].filter(Boolean));
+  return nameSet(id);
+}
+function noteKeys(id,name){return [id,...[...noteNames(id,name)].map(n=>'n:'+n)]}
+function cutoffOf(id,name){
+  let c=null;
+  noteKeys(id,name).forEach(k=>{const v=noteCutoffs[k];if(v&&(!c||v>c))c=v});
+  return c;
+}
+/* 그 날짜에서 같은 운동의 기록 항목을 찾는다. id 가 정확히 같은 항목을 먼저 본다. */
+function entryAt(date,id,name){
+  const list=(logs[date]&&logs[date].ex)||[];
+  const exact=list.find(e=>e.id===id);
+  if(exact)return exact;
+  const names=noteNames(id,name);
+  return list.find(e=>names.has(normN(e.n)))||null;
+}
+function prevNote(id,name){
+  const cutoff=cutoffOf(id,name);
   const dates=Object.keys(logs).filter(d=>d<cur&&(!cutoff||d>cutoff)).sort().reverse();
   for(const d of dates){
-    const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
-    if(e&&e.note&&e.note.trim())return{note:e.note,d};
+    const names=noteNames(id,name);
+    for(const e of (logs[d].ex||[])){
+      if(e.id!==id&&!names.has(normN(e.n)))continue;
+      if(e.note&&e.note.trim())return{note:e.note,d};
+    }
   }
   return null;
 }
@@ -1209,23 +1281,26 @@ let noteUndo=null;   // {id, day, sourceDate, oldNote, oldCutoff}
 function deleteNote(id){
   const d=draft[id];if(!d||!d.note||!d.note.trim())return;
   const sourceDate=d.carried||cur;
-  const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===id);
+  const ex0=todayList().find(x=>x.id===id);
+  const entry=entryAt(sourceDate,id,sourceDate===cur?undefined:(ex0&&ex0.n));
   const oldNote=entry?entry.note:d.note;
-  const oldCutoff=noteCutoffs[id]||null;
+  const keys=noteKeys(id);
+  const oldCutoffs={};keys.forEach(k=>{oldCutoffs[k]=noteCutoffs[k]||null});
 
-  noteUndo={id,day:cur,sourceDate,oldNote,oldCutoff};
+  noteUndo={id,day:cur,sourceDate,oldNote,oldCutoffs,entryId:entry?entry.id:null};
   if(entry){entry.note='';ls.set(K.lg,logs)}
-  if(!oldCutoff||cur>oldCutoff){noteCutoffs[id]=cur;ls.set('tl_notecutoffs',noteCutoffs)}
+  keys.forEach(k=>{const oc=noteCutoffs[k];if(!oc||cur>oc)noteCutoffs[k]=cur});
+  ls.set('tl_notecutoffs',noteCutoffs);
   d.note='';d.carried=null;
   saveLog(true);renderRoutine();
 }
 /* 방금 지운 메모를 되살린다 — 기준일도 지우기 전 상태로 되돌린다 */
 function undoNote(){
   if(!noteUndo||noteUndo.day!==cur){noteUndo=null;renderRoutine();return}
-  const{id,sourceDate,oldNote,oldCutoff}=noteUndo;
-  const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===id);
+  const{id,sourceDate,oldNote,oldCutoffs,entryId}=noteUndo;
+  const entry=logs[sourceDate]&&logs[sourceDate].ex&&logs[sourceDate].ex.find(e=>e.id===entryId);
   if(entry){entry.note=oldNote;ls.set(K.lg,logs)}
-  if(oldCutoff)noteCutoffs[id]=oldCutoff;else delete noteCutoffs[id];
+  Object.keys(oldCutoffs).forEach(k=>{if(oldCutoffs[k])noteCutoffs[k]=oldCutoffs[k];else delete noteCutoffs[k]});
   ls.set('tl_notecutoffs',noteCutoffs);
   if(draft[id]){
     draft[id].note=oldNote;
@@ -1261,14 +1336,14 @@ function syncNoteTag(ta,id){
 function loadDraft(){
   noteUndo=null;   // 날짜를 옮기면 되돌리기 대상도 함께 사라진다
   const saved=logs[cur];draft={};
-  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const list=todayList();
   list.forEach(ex=>{
     const hit=saved&&saved.ex&&saved.ex.find(e=>e.id===ex.id);
     /* 오늘 메모가 아직 없으면 지난 메모를 이어받는다 (자세 큐가 유지되도록) */
     let note=hit?(hit.note||''):'';
     let carried=null;
     if(!note&&!hit){
-      const pn=prevNote(ex.id);
+      const pn=prevNote(ex.id,ex.n);
       if(pn){note=pn.note;carried=pn.d}
     }
     /* 그날 세트 수는 저장된 기록이 더 길면 그쪽을 따른다 (추가한 세트 유지) */
@@ -1294,27 +1369,43 @@ function loadDraft(){
 }
 /* 그날 이 운동의 세트 수 */
 function setsOf(ex){const d=draft[ex.id];return d&&d.v?Math.max(d.v.length,1):ex.sets}
-function prevTotal(id,type){
-  const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
-  for(const d of dates){
-    const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
-    /* 횟수와 홀드는 단위가 달라 서로 비교하지 않는다 */
-    if(e&&type&&(e.t||'reps')!==type)continue;
-    if(e){const t=e.v.reduce((a,b)=>a+num(b),0);if(t>0)return{t,d,n:e.n}}
-  }
-  return null;
+/* 같은 운동 찾기 — id 가 같거나, 이름이 같으면(공백·대소문자 무시) 같은 운동으로 본다.
+   자주 하는 운동을 매번 새로 등록하거나 운동일·휴식일에 따로 만들어 둬도 기록이 이어진다. */
+function normN(s){return String(s||'').toLowerCase().replace(/\s+/g,'')}
+function nameSet(id){
+  const ex=todayList().find(x=>x.id===id),d=draft[id];
+  return new Set([normN(d&&d.n),normN(ex&&ex.n)].filter(Boolean));
 }
-/* 보조값(무게·최장홀드)의 지난 기록 */
-function prevSub(id){
+/* 오늘 이전 기록을 최신순으로 훑어 pick(e,date) 가 값을 돌려주는 첫 항목을 찾는다.
+   kind 가 true/false 면 운동일/휴식일 날짜만 본다. */
+function findPrev(id,kind,pick){
+  const names=nameSet(id);
   const dates=Object.keys(logs).filter(d=>d<cur).sort().reverse();
   for(const d of dates){
-    const e=logs[d].ex&&logs[d].ex.find(x=>x.id===id);
-    if(e&&e.sub){
-      const v=e.sub.map(num).filter(x=>x>0);
-      if(v.length)return{max:Math.max(...v),d};
+    if(kind!==undefined&&isWorkout(d)!==kind)continue;
+    for(const e of (logs[d].ex||[])){
+      if(e.skip)continue;
+      if(e.id!==id&&!names.has(normN(e.n)))continue;
+      const r=pick(e,d);if(r)return r;
     }
   }
   return null;
+}
+function prevTotal(id,type,kind){
+  return findPrev(id,kind,(e,d)=>{
+    /* 횟수와 홀드는 단위가 달라 서로 비교하지 않는다 */
+    if(type&&(e.t||'reps')!==type)return null;
+    const t=(e.v||[]).reduce((a,b)=>a+num(b),0);
+    return t>0?{t,d,n:e.n}:null;
+  });
+}
+/* 보조값(무게·최장홀드)의 지난 기록 */
+function prevSub(id){
+  return findPrev(id,undefined,(e,d)=>{
+    if(!e.sub)return null;
+    const v=e.sub.map(num).filter(x=>x>0);
+    return v.length?{max:Math.max(...v),d}:null;
+  });
 }
 /* 무게는 최고 중량, 홀드는 최장 시간을 뽑아 보여준다 */
 function subSummary(ex,d){
@@ -1335,10 +1426,85 @@ function subSummary(ex,d){
   return `<div class="bestLine">${lab} <b>${fmt(best)}${u}</b>${chip}</div>`;
 }
 
+/* ══════════ 자주 하는 운동 · 오늘만 추가한 운동 ══════════ */
+function addExtra(def){
+  if(isLocked(cur)){alert('확정된 날짜입니다. 먼저 확정을 해제해 주세요.');return false}
+  if(todayList().some(x=>x.id===def.id||normN(x.n)===normN(def.n))){flash('이미 오늘 목록에 있음');return false}
+  saveLog(true);                      // 입력 중인 값을 먼저 저장한 뒤 목록을 다시 만든다
+  (extras[cur]||(extras[cur]=[])).push({
+    id:def.id,s:'오늘 추가',n:def.n,t:def.t==='hold'?'hold':'reps',sub:def.sub||'',
+    sets:Math.max(1,num(def.sets)||3),rest:Math.max(1,num(def.rest)||60),swTarget:def.swTarget||0,link:false,extra:true
+  });
+  ls.set('tl_extras',extras);
+  loadDraft();renderRoutine();renderSkipAll();updateStat();renderExChips();
+  const cards=document.querySelectorAll('#routine .ex');
+  if(cards.length)cards[cards.length-1].scrollIntoView({behavior:'smooth',block:'center'});
+  flash('오늘 운동에 추가');
+  return true;
+}
+function renderExChips(){
+  const host=document.getElementById('exChips');if(!host)return;
+  const lib=routines.lib||[];
+  const tl=todayList(),usedId=new Set(tl.map(x=>x.id)),usedNm=new Set(tl.map(x=>normN(x.n)));
+  const isUsed=x=>usedId.has(x.id)||usedNm.has(normN(x.n));
+  host.innerHTML=lib.map(x=>
+    `<button class="fchip${isUsed(x)?' used':''}" data-x="${x.id}">${esc(x.n)}<em>${isUsed(x)?'✓ 오늘':`${x.sets}×${x.t==='hold'?'홀드':'횟수'}`}</em></button>`).join('')
+    ||'<div class="empty" style="padding:8px 0">설정 → 루틴 편집 → 자주 하는 운동에서 등록해 주세요.</div>';
+  host.querySelectorAll('.fchip').forEach(b=>b.addEventListener('click',()=>{
+    const def=lib.find(x=>x.id===b.dataset.x);
+    if(def)addExtra(def);
+  }));
+}
+function xClose(){
+  document.getElementById('xAdhocForm').style.display='none';
+  document.getElementById('xN').value='';document.getElementById('xReg').checked=false;
+}
+document.getElementById('xAdhocBtn').addEventListener('click',()=>{
+  const f=document.getElementById('xAdhocForm');
+  if(f.style.display==='none'){f.style.display='';document.getElementById('xN').focus()}else xClose();
+});
+document.getElementById('xCancel').addEventListener('click',xClose);
+document.getElementById('xAdd').addEventListener('click',()=>{
+  const n=document.getElementById('xN').value.trim();
+  if(!n){alert('운동 이름을 입력해 주세요.');return}
+  const def={id:uid(),n,t:document.getElementById('xT').value,sets:num(document.getElementById('xS').value)||3,rest:num(document.getElementById('xR').value)||60};
+  if(!addExtra(def))return;
+  if(document.getElementById('xReg').checked){
+    routines.lib.push({id:def.id,s:'오늘 추가',n:def.n,t:def.t,sub:'',sets:def.sets,rest:def.rest,swTarget:0,link:false});
+    ls.set(K.rt,routines);renderREdit();renderExChips();
+  }
+  xClose();
+});
+
+/* 전 기록 대비 칩. 기본은 날짜순 바로 앞 기록(운동일·휴식일 구분 없이)과 비교하고,
+   그 기록이 다른 종류의 날이면 오늘과 같은 종류의 날 기준 비교도 한 줄 더 보여준다. */
+function chipsFor(id,tot,et){
+  const unit=et==='hold'?'초':'회';
+  const nm=(draft[id]||{}).n;
+  const md=d=>d.slice(5).replace('-','/');
+  const pv=prevTotal(id,et);
+  if(!pv)return '<span class="chip new">첫 기록</span>';
+  const kindNow=isWorkout(cur),kindPv=isWorkout(pv.d);
+  const lab=k=>k?'운동일':'휴식일';
+  const was=pv.n&&normN(pv.n)!==normN(nm)?` · ${esc(pv.n)}`:'';
+  const where=kindNow!==kindPv?` · ${lab(kindPv)} ${md(pv.d)}`:'';
+  if(!(tot>0))return `<span class="chip flat">전회 ${fmt(pv.t)}${unit}${where}${was}</span>`;
+  const df=tot-pv.t,cls=df>0?'up':df<0?'down':'flat';
+  let html=`<span class="chip ${cls}">${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${unit}${where}${was}</span>`;
+  if(kindNow!==kindPv){
+    const p2=prevTotal(id,et,kindNow);
+    if(p2&&p2.d!==pv.d){
+      const d2=tot-p2.t,c2=d2>0?'up':d2<0?'down':'flat';
+      html+=`<span class="chip sub ${c2}">${lab(kindNow)} 기준 ${d2>0?'+':''}${fmt(d2)}${unit} · 전 ${fmt(p2.t)}${unit} (${md(p2.d)})</span>`;
+    }
+  }
+  return html;
+}
+
 function renderRoutine(){
-  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const list=todayList();
   const host=document.getElementById('routine');
-  if(!list.length){host.innerHTML='<div class="panel"><div class="empty">등록된 운동이 없습니다.<br>설정에서 루틴을 추가해 주세요.</div></div>';return}
+  if(!list.length){host.innerHTML='<div class="panel"><div class="empty">오늘 할 운동이 없습니다.<br>아래 "운동 추가"에서 자주 하는 운동을 눌러 시작하세요.</div></div>';return}
 
   /* link 가 켜진 운동은 바로 앞 운동과 한 세트로 묶인다 */
   const groups=[];
@@ -1365,13 +1531,7 @@ function renderRoutine(){
       const et=d.t||ex.t;                           // 그날의 기록 방식
       const unit=et==='hold'?'초':'회';
       const tot=d.v.reduce((a,b)=>a+num(b),0);
-      const pv=prevTotal(ex.id,et);
-      let chip='<span class="chip new">첫 기록</span>';
-      if(pv&&tot>0){
-        const df=tot-pv.t,cls=df>0?'up':df<0?'down':'flat';
-        const was=pv.n&&pv.n!==d.n?` · ${esc(pv.n)}`:'';
-        chip=`<span class="chip ${cls}">${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}</span>`;
-      }else if(pv)chip=`<span class="chip flat">전회 ${fmt(pv.t)}${unit}</span>`;
+      const chip=chipsFor(ex.id,tot,et);
 
       let boxes='';
       const sub=ex.sub||'';                       // '' | 'kg' | 'best'
@@ -1409,7 +1569,8 @@ function renderRoutine(){
         : `<div class="exTop">
              <input class="exNameIn${d.n!==ex.n?' renamed':''}" value="${esc(d.n)}" data-rename="${ex.id}" spellcheck="false"${d.skip?' disabled':''}>
              <div class="exMeta">${ns}세트 · ${ex.rest}초</div>
-             <button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}">${d.skip?'↺':'⊘'}</button>
+             ${ex.extra?`<button class="skipBtn" data-xdel="${ex.id}" title="오늘 목록에서 빼기">✕</button>`
+               :`<button class="skipBtn${d.skip?' on':''}" data-skip="${ex.id}" title="${d.skip?'다시 포함':'오늘 건너뛰기'}">${d.skip?'↺':'⊘'}</button>`}
              ${d.skip?'':`<button class="camBtn${ph.length?' has':''}" data-cam="${ex.id}" title="자세 사진">◉</button>`}</div>`;
 
       if(d.skip)return `<div class="mv${cmp?'':''}">${head}<div class="skipNote">오늘은 건너뜀 <button data-skip="${ex.id}">되돌리기</button></div></div>`;
@@ -1498,12 +1659,10 @@ function renderRoutine(){
     const tot=draft[id].v.reduce((a,b)=>a+num(b),0);
     const totEl=card.querySelector('.total');
     if(totEl)totEl.innerHTML=`합계 <b>${fmt(tot)}</b>${unit}`;
-    const pv=prevTotal(id,et),chipEl=card.querySelector('.chip');
-    if(pv&&tot>0&&chipEl){
-      const df=tot-pv.t;
-      chipEl.className='chip '+(df>0?'up':df<0?'down':'flat');
-      const was=pv.n&&pv.n!==draft[id].n?` · ${pv.n}`:'';
-      chipEl.textContent=`${df>0?'+':''}${fmt(df)}${unit} · 전회 ${fmt(pv.t)}${was}`;
+    const foot=card.querySelector('.mvFoot');
+    if(foot){
+      foot.querySelectorAll('.chip').forEach(c=>c.remove());
+      foot.insertAdjacentHTML('beforeend',chipsFor(id,tot,et));
     }
     updateStat();
   }));
@@ -1608,6 +1767,22 @@ function renderRoutine(){
       d.off=(d.off||[]).filter(i=>i<last);
     });
     saveLog(true);renderRoutine();renderTime();
+  }));
+  /* 그날 추가한 운동을 목록에서 뺀다 — 입력한 기록이 있으면 함께 지워지므로 한 번 확인한다 */
+  host.querySelectorAll('[data-xdel]').forEach(b=>b.addEventListener('click',async()=>{
+    const id=b.dataset.xdel,d=draft[id];
+    const has=!!d&&(d.v.some(v=>String(v).trim()!=='')||d.secs.some(x=>x>0)||d.swSecs.some(x=>x>0)||(!d.carried&&String(d.note||'').trim()!=='')||(shots[id]||[]).length>0);
+    if(has&&!confirm('이 운동의 오늘 기록·시간·사진이 함께 지워집니다. 목록에서 뺄까요?'))return;
+    if(running&&running.id===id){running=null;if(tick){clearInterval(tick);tick=null}}
+    if(swRunning&&swRunning.id===id){swRunning=null;if(swTick){clearInterval(swTick);swTick=null}}
+    if(rest&&rest.id===id)clearRestSilently();
+    extras[cur]=(extras[cur]||[]).filter(x=>x.id!==id);
+    if(!extras[cur].length)delete extras[cur];
+    ls.set('tl_extras',extras);
+    delete draft[id];
+    if(shots[id]){await IDB.del(cur+'::'+id);delete shots[id]}
+    if(logs[cur]){logs[cur].ex=logs[cur].ex.filter(e=>e.id!==id);if(!logs[cur].ex.length)delete logs[cur];ls.set(K.lg,logs)}
+    saveLog(true);renderRoutine();renderTime();renderExChips();renderSkipAll();
   }));
   /* 세트 하나만 빼기 */
   host.querySelectorAll('[data-drop]').forEach(b=>b.addEventListener('click',()=>{
@@ -1841,7 +2016,7 @@ function stopTimer(){
 function toggleTimer(id,set){
   if(isLocked(cur))return;
   if(running&&running.id===id&&running.set===set){
-    const ex=(isWorkout(cur)?routines.workout:routines.rest).find(x=>x.id===id);
+    const ex=todayList().find(x=>x.id===id);
     stopTimer();
     renderTime();
     startRest(id,set,ex?ex.rest:0);   // 세트를 끝내면 휴식이 자동으로 시작된다
@@ -1917,7 +2092,7 @@ function renderVolume(){
   });
 }
 function updateStat(){
-  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const list=todayList();
   let done=0,total=0,skipped=0;
   list.forEach(ex=>{
     const d=draft[ex.id];if(!d)return;
@@ -1942,7 +2117,7 @@ function updateStat(){
 }
 function saveLog(silent){
   if(isLocked(cur)&&silent!==true)return;
-  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const list=todayList();
   const ex=[];
   list.forEach(x=>{
     const d=draft[x.id];if(!d)return;
@@ -1960,7 +2135,11 @@ function saveLog(silent){
       ex.push({id:x.id,n:d.n||x.n,t:d.t||x.t,v:d.v.slice(),note:d.note,secs,sw:swSecs,sub:subv,off});
     }
   });
-  if(ex.length)logs[cur]={ex};else delete logs[cur];
+  /* 루틴에서 지웠거나 다른 종류의 날 운동이라 지금 목록에 없는 운동의 저장된 기록은 그대로 둔다 */
+  const inList=new Set(list.map(x=>x.id));
+  const kept=((logs[cur]&&logs[cur].ex)||[]).filter(e=>!inList.has(e.id));
+  const all=ex.concat(kept);
+  if(all.length)logs[cur]={ex:all};else delete logs[cur];
   ls.set(K.lg,logs);
   if(silent===true){renderVolume();renderTime();renderSession();updateStat();return}
   renderRoutine();renderVolume();renderTime();updateStat();
@@ -2324,8 +2503,11 @@ function makeSortable(container,rowSel,handleSel,onDrop){
   });
 }
 
+const RT_NAME={workout:'운동일',rest:'휴식일',lib:'자주 하는 운동'};
 function renderREdit(){
   const key=document.getElementById('rSel').value,list=routines[key];
+  document.getElementById('clearRt').textContent=`${RT_NAME[key]} 전부 지우기`;
+  document.getElementById('clearRtAll').style.display=key==='lib'?'none':'';
   document.getElementById('rEdit').innerHTML=list.map((ex,i)=>`
     <div class="rCard dragRow">
       <div class="rTop">
@@ -2357,12 +2539,12 @@ function renderREdit(){
         </div>
       </div>
       <div class="rBottom">
-        <input value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름">
+        ${key==='lib'?'':`<input value="${esc(ex.s)}" data-r="${i}" data-k="s" placeholder="파트 이름">`}
         <div class="swField">
           <label>스탑워치</label>
           <input type="number" inputmode="numeric" min="0" placeholder="초" value="${ex.swTarget||''}" data-r="${i}" data-k="swTarget">
         </div>
-        ${i>0?`<label class="linkLbl${ex.link?' on':''}">
+        ${i>0&&key!=='lib'?`<label class="linkLbl${ex.link?' on':''}">
           <input type="checkbox" data-link="${i}"${ex.link?' checked':''}> 위와 묶기</label>`:''}
       </div>
     </div>
@@ -2511,7 +2693,7 @@ function renderLock(){
 /* 그날 운동을 통째로 건너뛰거나 되돌린다 */
 function toggleSkipAll(){
   if(isLocked(cur)){alert('확정된 날짜입니다. 먼저 확정을 해제해 주세요.');return}
-  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const list=todayList();
   if(!list.length)return;
   const allSkipped=list.every(x=>draft[x.id]&&draft[x.id].skip);
 
@@ -2537,7 +2719,7 @@ function toggleSkipAll(){
 }
 /* 버튼 라벨을 상태에 맞게 바꾼다 */
 function renderSkipAll(){
-  const list=isWorkout(cur)?routines.workout:routines.rest;
+  const list=todayList();
   const b=document.getElementById('skipAll');
   if(!b)return;
   const allSkipped=list.length&&list.every(x=>draft[x.id]&&draft[x.id].skip);
@@ -2553,6 +2735,7 @@ async function refreshTrain(){
   t.textContent=DAYS[dow(cur)]+'·'+(isWorkout(cur)?'운동':'휴식');
   t.className='daytag'+(isWorkout(cur)?' on':'')+(isOverridden(cur)?' edited':'');
   document.getElementById('todayBtn').style.display=cur===todayStr()?'none':'';
+  renderExChips();
 }
 
 /* 그날만 운동일 ↔ 휴식일을 바꾼다. 요일 설정은 건드리지 않는다. */
@@ -2719,8 +2902,25 @@ document.getElementById('basis').addEventListener('change',e=>{
 });
 document.getElementById('addEx').addEventListener('click',()=>{
   const key=document.getElementById('rSel').value,last=routines[key][routines[key].length-1];
-  routines[key].push({id:uid(),s:last?last.s:'파트 1',n:'새 운동',t:'reps',sets:3,rest:60,link:false});
+  routines[key].push({id:uid(),s:key==='lib'?'오늘 추가':(last?last.s:'파트 1'),n:'새 운동',t:'reps',sets:3,rest:60,link:false});
   ls.set(K.rt,routines);renderREdit();refreshTrain();
+});
+document.getElementById('clearRt').addEventListener('click',()=>{
+  const key=document.getElementById('rSel').value,n=(routines[key]||[]).length;
+  if(!n){alert('지울 운동이 없습니다.');return}
+  const tail=key==='lib'
+    ?'\n운동 화면의 "운동 추가" 칩이 비워집니다.'
+    :'\n자주 하는 운동은 그대로라서, 운동 화면의 "운동 추가"로 다시 불러올 수 있습니다.';
+  if(!confirm(`${RT_NAME[key]} 목록의 운동 ${n}개를 모두 지웁니다.\n이미 저장된 운동 기록과 지난 기록 비교는 그대로 남습니다.${tail}`))return;
+  routines[key]=[];ls.set(K.rt,routines);
+  renderREdit();refreshTrain();renderExChips();
+});
+document.getElementById('clearRtAll').addEventListener('click',()=>{
+  const n=routines.workout.length+routines.rest.length;
+  if(!n){alert('지울 운동이 없습니다.');return}
+  if(!confirm(`운동일 ${routines.workout.length}개 · 휴식일 ${routines.rest.length}개 루틴을 모두 지웁니다.\n이미 저장된 운동 기록과 지난 기록 비교는 그대로 남습니다.\n자주 하는 운동은 그대로라서, 운동 화면의 "운동 추가"로 다시 불러올 수 있습니다.`))return;
+  routines.workout=[];routines.rest=[];ls.set(K.rt,routines);
+  renderREdit();refreshTrain();renderExChips();
 });
 document.getElementById('addFood').addEventListener('click',()=>{
   foods.push({id:'f'+Date.now(),n:'새 음식',kcal:0,p:0,c:0,sugar:0,f:0,sat:0,na:0});
@@ -2735,7 +2935,7 @@ document.getElementById('addFood').addEventListener('click',()=>{
 });
 document.getElementById('exp').addEventListener('click',async()=>{
   const photos=await IDB.all();
-  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,locked,noteCutoffs,photos});
+  const data=JSON.stringify({routines,logs,foods,meals,targets,wdays,weights,sessions,dayType,locked,noteCutoffs,extras,photos});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));
   a.download='nagis-training-log_'+todayStr()+'.json';a.click();
@@ -2758,6 +2958,7 @@ document.getElementById('imp').addEventListener('click',()=>{
         if(d.dayType){dayType=d.dayType;ls.set('tl_daytype',dayType)}
         if(d.noteCutoffs){noteCutoffs=d.noteCutoffs;ls.set('tl_notecutoffs',noteCutoffs)}
         if(d.locked){locked=d.locked;ls.set('tl_locked',locked)}
+        if(d.extras){extras=d.extras;ls.set('tl_extras',extras)}
         if(d.photos){for(const k of Object.keys(d.photos))await IDB.set(k,d.photos[k])}
         ls.set('tl_migrated',true);boot();alert('불러왔습니다.');
       }catch(e){alert('파일을 읽을 수 없습니다.')}
@@ -2768,14 +2969,14 @@ document.getElementById('imp').addEventListener('click',()=>{
 });
 document.getElementById('wipeLogs').addEventListener('click',async()=>{
   if(!confirm('모든 날짜의 운동 기록과 사진을 지웁니다.\n루틴·음식·식단은 남습니다.'))return;
-  logs={};ls.set(K.lg,logs);sessions={};ls.set('tl_sessions',sessions);locked={};ls.set('tl_locked',locked);await IDB.clear();
+  logs={};ls.set(K.lg,logs);sessions={};ls.set('tl_sessions',sessions);locked={};ls.set('tl_locked',locked);extras={};ls.set('tl_extras',extras);await IDB.clear();
   boot();alert('운동 기록을 지웠습니다.');
 });
 document.getElementById('wipe').addEventListener('click',async()=>{
   if(!confirm('모든 기록이 지워집니다. 계속할까요?'))return;
   Object.values(K).forEach(k=>localStorage.removeItem(k));
-  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');localStorage.removeItem('tl_locked');localStorage.removeItem('tl_notecutoffs');await IDB.clear();
-  noteCutoffs={};
+  localStorage.removeItem('tl_basis');localStorage.removeItem('tl_weights');localStorage.removeItem('tl_sessions');localStorage.removeItem('tl_daytype');localStorage.removeItem('tl_locked');localStorage.removeItem('tl_notecutoffs');localStorage.removeItem('tl_extras');await IDB.clear();
+  noteCutoffs={};extras={};
   weights={};sessions={};dayType={};locked={};
   routines=JSON.parse(JSON.stringify(DEF_ROUTINE));logs={};
   foods=JSON.parse(JSON.stringify(DEF_FOODS));meals={};
@@ -2785,6 +2986,7 @@ document.getElementById('wipe').addEventListener('click',async()=>{
 
 /* ══════════ 시작 ══════════ */
 function boot(){
+  ensureLib();
   document.getElementById('date').value=cur;
   document.getElementById('basis').value=basis;
   restoreRest();
